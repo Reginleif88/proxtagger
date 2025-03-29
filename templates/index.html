@@ -1,0 +1,292 @@
+{% extends "layout.html" %}
+{% block content %}
+
+{% if config_ok %}
+<div class="row">
+    <!-- Main content -->
+    <div class="col-12">
+        <!-- Bulk Tag Management Panel -->
+        <div class="alert alert-info mb-4">
+            <h5 class="alert-heading"><i class="bi bi-info-circle"></i> How Tag Management Works</h5>
+            <p><strong>Bulk Management:</strong> Use the panel below to add or remove tags across multiple VMs/containers at once:</p>
+            <ol class="mb-2">
+                <li>Select <strong>Add Tags</strong> or <strong>Remove Tags</strong> operation</li>
+                <li>Choose or create tags to work with</li>
+                <li>Select the VMs/containers using the checkboxes</li>
+                <li>Click <strong>Apply</strong> to make the changes</li>
+            </ol>
+            <p class="mb-0"><strong>Individual Management:</strong> To edit tags for a specific VM/container, use the tag controls in the <strong>Tags</strong> column of the table below.</p>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <strong>🔧 Bulk Tag Management</strong>
+            </div>
+            <div class="card-body" id="bulkTagPanel">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Operation</label>
+                        <div class="btn-group w-100" role="group" aria-label="Tag operation">
+                            <input type="radio" class="btn-check" name="tagOperation" id="tagAdd" value="add" checked>
+                            <label class="btn btn-outline-success" for="tagAdd">
+                                <i class="bi bi-plus-circle"></i> Add Tags
+                            </label>
+                            <input type="radio" class="btn-check" name="tagOperation" id="tagRemove" value="remove">
+                            <label class="btn btn-outline-danger" for="tagRemove">
+                                <i class="bi bi-dash-circle"></i> Remove Tags
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-8 mb-3">
+                        <label class="form-label fw-bold">Tags</label>
+                        <div class="mb-2">
+                            <div class="input-group" id="newTagInputGroup">
+                                <input type="text" class="form-control" id="newTagInput" placeholder="Enter new tag...">
+                                <button class="btn btn-success" type="button" id="addNewTagBtn">
+                                    <i class="bi bi-plus-lg"></i> Add Tag
+                                </button>
+                            </div>
+                            <small class="text-muted">New tags can only be added in "Add Tags" mode</small>
+                        </div>
+                        
+                        <label class="form-label">Selected Tags</label>
+                        <div class="form-control d-flex flex-wrap gap-2 selected-tags-container mb-2" style="height: auto; min-height: 38px;">
+                            <!-- Selected tags will appear here -->
+                        </div>
+                        
+                        <label class="form-label">Available Tags</label>
+                        <div class="d-flex flex-wrap gap-2" id="availableTags">
+                                {% for tag in tags %}
+                                {% if tag|trim %}
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input tag-checkbox" type="checkbox" id="tag-{{ tag|trim }}" value="{{ tag|trim }}">
+                                    <label class="form-check-label" for="tag-{{ tag|trim }}">{{ tag|trim }}</label>
+                                </div>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <label class="form-label mt-3">Selected VMs/Containers</label>
+                        <div class="selected-vms-container p-2 border rounded bg-light mb-2" style="min-height: 40px; max-height: 100px; overflow-y: auto;">
+                            <div id="selectedVMsList" class="d-flex flex-wrap gap-1">
+                                <!-- Selected VMs will appear here -->
+                                <span class="text-muted small fst-italic">No VMs selected</span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end">
+                    <button type="button" id="bulkApplyBtn" class="btn btn-primary">
+                        <i class="bi bi-check2-all"></i> Apply
+                    </button>
+                </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>VMs & LXC Containers</strong>
+                <div class="d-flex align-items-center">
+                    <div class="input-group input-group-sm" style="width: 250px;">
+                        <span class="input-group-text"><i class="bi bi-search"></i></span>
+                        <input type="text" class="form-control" id="vmSearchInput" placeholder="Search by name or ID...">
+                        <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn">
+                            <i class="bi bi-x"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-dark z-3">
+                            <tr>
+                                <th scope="col" class="text-center" style="width: 40px;">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="selectAllVMs">
+                                        <label class="form-check-label visually-hidden" for="selectAllVMs">Select All</label>
+                                    </div>
+                                </th>
+                                <th scope="col">🔤 Name</th>
+                                <th scope="col">🔢 VMID</th>
+                                <th scope="col">🖥️ Node</th>
+                                <th scope="col">⚙️ Type</th>
+                                <th scope="col">🏷️ Tags</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for vm in vms %}
+                            <tr>
+                                <td class="text-center">
+                                    <div class="form-check">
+                                        <input class="form-check-input vm-checkbox" type="checkbox" 
+                                               id="vm-{{ vm.vmid }}" 
+                                               data-vmid="{{ vm.vmid }}" 
+                                               data-node="{{ vm.node }}" 
+                                               data-type="{{ vm.type }}" 
+                                               data-tags="{{ vm.tags or '' }}" 
+                                               data-name="{{ vm.name or 'VM ' + vm.vmid|string }}">
+                                        <label class="form-check-label visually-hidden" for="vm-{{ vm.vmid }}">Select VM</label>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi {% if vm.type == 'qemu' %}bi-pc-display{% else %}bi-hdd-rack{% endif %} fs-5 text-primary"></i>
+                                        <span class="text-truncate" style="max-width: 180px;" title="{{ vm.name or 'Unnamed VM' }}">
+                                            {% if vm.name %}
+                                                {{ vm.name }}
+                                            {% else %}
+                                                <span class="text-muted fst-italic">Unnamed VM</span>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </td>
+                                
+                                <td>
+                                    <span class="badge bg-light text-dark border">
+                                        {{ vm.vmid }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="bi bi-cpu text-muted"></i>
+                                        <span>{{ vm.node }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    {% if vm.type == 'qemu' %}
+                                        <span class="badge bg-info text-dark">
+                                            <i class="bi bi-pc-display"></i> VM
+                                        </span>
+                                    {% elif vm.type == 'lxc' %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-hdd-rack"></i> LXC
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-light text-dark">
+                                            {{ vm.type }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <!-- Tag Editor Component -->
+                                    <div class="tag-editor" 
+                                         data-vmid="{{ vm.vmid }}" 
+                                         data-node="{{ vm.node }}" 
+                                         data-type="{{ vm.type }}"
+                                         aria-label="Tag editor for VM {{ vm.name or 'unnamed' }}">
+                                        
+                                        <!-- Fixed height container to prevent shifting -->
+                                        <div style="min-height: 110px;">
+                                            <!-- Header: Tags title and Add button -->
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <small class="text-muted">
+                                                    <i class="bi bi-tags me-1"></i>Tags
+                                                </small>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary add-tag-btn"
+                                                        aria-label="Add new tag to VM {{ vm.vmid }}">
+                                                    <i class="bi bi-plus-lg"></i>
+                                                </button>
+                                            </div>
+
+                                            <!-- Tags Container -->
+                                            <div class="tag-list d-flex flex-wrap align-items-center gap-2" 
+                                                 data-tags="{{ vm.tags or '' }}"
+                                                 role="list"
+                                                 aria-label="Current tags for VM {{ vm.vmid }}">
+                                            </div>
+                                            
+                                            <!-- Tag Input (Hidden by default) -->
+                                            <div class="tag-input-container position-relative mt-2 d-none">
+                                                <div class="d-flex align-items-center mb-1">
+                                                    <small class="text-primary fw-bold me-auto">
+                                                        <i class="bi bi-keyboard"></i> <u>Press Enter to add</u>
+                                                    </small>
+                                                </div>
+                                                <input type="text" 
+                                                       class="form-control form-control-sm tag-input border-primary" 
+                                                       placeholder="Enter new tag"
+                                                       maxlength="50"
+                                                       aria-label="New tag input for VM {{ vm.vmid }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<!-- Setup Form -->
+<div class="alert alert-warning">
+    <strong>⚠️ Proxmox API not configured or connection failed.</strong><br>
+    {{ error }}
+</div>
+
+<div class="alert alert-info mb-4">
+    <h5 class="alert-heading"><i class="bi bi-info-circle"></i> API Token & Backup</h5>
+    <p>To use ProxTagger, you'll need a Proxmox API token with these permissions:</p>
+    <ul>
+        <li><code>VM.Audit</code> - For listing VMs and containers</li>
+        <li><code>VM.Config.Options</code> - For reading and modifying tags</li>
+    </ul>
+    <p>Your API token and connection details will be saved in <code>config.json</code> in the project directory.</p>
+    <p><strong>Note: </strong>When you click "Save & Connect", the system will automatically download an initial tag backup file to your computer.</p>
+</div>
+
+<div class="card">
+    <div class="card-header"><strong>🔧 Proxmox API Setup</strong></div>
+    <div class="card-body">
+        <form method="POST" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label" for="host">Proxmox Host</label>
+                <input type="text" name="host" id="host" class="form-control" placeholder="e.g., proxmox.example.com" value="{{ config.PROXMOX_HOST }}" required>
+                <div class="form-text">Enter hostname or IP without 'https://' prefix</div>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label" for="port">Port</label>
+                <input type="text" name="port" id="port" class="form-control" value="{{ config.PROXMOX_PORT or '8006' }}" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label" for="user">User (e.g. root@pam)</label>
+                <input type="text" name="user" id="user" class="form-control" value="{{ config.PROXMOX_USER }}" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label" for="token_name">Token Name</label>
+                <input type="text" name="token_name" id="token_name" class="form-control" value="{{ config.PROXMOX_TOKEN_NAME }}" required>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label" for="token_value">Token Value</label>
+                <input type="password" name="token_value" id="token_value" class="form-control" value="{{ config.PROXMOX_TOKEN_VALUE }}" required>
+            </div>
+
+            <div class="col-12">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="verify_ssl" id="sslCheck"
+                        {% if config.VERIFY_SSL %}checked{% endif %}>
+                    <label class="form-check-label" for="sslCheck">Verify SSL</label>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">Save & Connect</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

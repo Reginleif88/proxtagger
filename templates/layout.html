@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProxTagger</title>
+    <!-- Emoji Favicon -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧩</text></svg>">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        /* Table styles */
+        .table {
+            font-size: 0.9375rem;
+        }
+        
+        /* Set fixed width for tags column to prevent shifting */
+        .table th:last-child,
+        .table td:last-child {
+            width: 250px;
+            min-width: 250px;
+            max-width: 250px;
+        }
+        
+        /* Tag editor styles */
+        .tag-editor {
+            min-height: 70px;
+            position: relative;
+        }
+        
+        .tag-list {
+            min-height: 32px;
+            width: 100%;
+        }
+        
+        .tag-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            margin-bottom: 0.25rem;
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .add-tag-btn {
+            padding: 0.25rem 0.5rem;
+            line-height: 1;
+            transition: all 0.2s ease;
+        }
+        
+        .tag-input-container {
+            max-width: 240px;
+            width: 100%;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .tag-input-container small {
+            color: #0d6efd !important;
+            font-weight: 500;
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        
+        .tag-input:focus {
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            border-color: #0d6efd;
+        }
+        
+        /* Highlight animation for tag input */
+        .highlight-input {
+            animation: pulse-border 1.5s ease;
+        }
+        
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(13, 110, 253, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(13, 110, 253, 0); }
+        }
+        
+        /* Bulk Tag Management styles */
+        #bulkTagPanel {
+            transition: all 0.3s ease;
+        }
+        
+        .selected-tags-container {
+            min-height: 38px;
+            padding: 0.375rem 0.75rem;
+        }
+        
+        .selected-tag {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .btn-check:checked + .btn {
+            font-weight: 500;
+        }
+        
+        #newTagInputGroup {
+            transition: opacity 0.3s ease;
+        }
+        
+        #availableTags {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #dee2e6;
+            border-radius: 0.25rem;
+            padding: 0.5rem;
+            background-color: #f8f9fa;
+        }
+
+        /* Badge hover effects */
+        .badge {
+            transition: all 0.2s ease;
+        }
+        
+        .badge:hover {
+            filter: brightness(95%);
+        }
+        
+        /* Sidebar styles */
+        .sidebar {
+            background-color: #f8f9fa;
+            border-right: 1px solid #dee2e6;
+            min-height: calc(100vh - 70px);
+            transition: all 0.3s ease;
+        }
+        
+        .sidebar-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #dee2e6;
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar-item:hover {
+            background-color: #e9ecef;
+        }
+        
+        .sidebar-icon {
+            width: 24px;
+            text-align: center;
+            margin-right: 8px;
+        }
+        
+        /* Overrides for small screens */
+        @media (max-width: 576px) {
+            .sidebar {
+                padding: 0 !important;
+            }
+            
+            .sidebar-item {
+                padding: 0.75rem 0.5rem;
+                text-align: center;
+            }
+            
+            .sidebar-text, .sidebar .alert, .sidebar .p-3, .sidebar-header h6 {
+                display: none;
+            }
+            
+            .sidebar-icon {
+                margin-right: 0;
+                width: 100%;
+                font-size: 1.25rem;
+            }
+            
+            .sidebar-header {
+                padding: 0.5rem !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <header>
+        <!-- Navbar -->
+        <nav class="navbar navbar-dark bg-dark mb-4">
+            <div class="container-fluid d-flex justify-content-between align-items-center">
+                <span class="navbar-brand">🧩 ProxTagger - Proxmox Tag Manager Tool</span>
+                {% if config_ok is defined %}
+                    <span class="badge {% if config_ok %}bg-success{% else %}bg-danger{% endif %}">
+                        {% if config_ok %}🔐 Connected{% else %}🔓 Not Connected{% endif %}
+                    </span>
+                {% endif %}
+            </div>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Flash messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="container-fluid mt-3">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                  {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- Main Layout Container -->
+        <div class="container-fluid">
+            <div class="row">
+                
+                <!-- Sidebar -->
+                {% if config_ok is defined and config_ok %}
+                <div class="sidebar col-md-3 col-lg-3 col-xl-2 col-sm-4 col-5 p-0">
+                    <div class="sidebar-header p-3 border-bottom">
+                        <h6 class="mb-0 fw-bold">Backup Actions</h6>
+                    </div>
+                <a href="/backup-tags" class="sidebar-item d-flex align-items-center text-decoration-none text-dark">
+                    <span class="sidebar-icon"><i class="bi bi-download"></i></span>
+                    <span class="sidebar-text">Export Tags</span>
+                </a>
+                <a href="#" id="restore-tags-btn" class="sidebar-item d-flex align-items-center text-decoration-none text-dark">
+                    <span class="sidebar-icon"><i class="bi bi-upload"></i></span>
+                    <span class="sidebar-text">Import Tags</span>
+                </a>
+                
+                <div class="p-3">
+                    <div class="alert alert-info small mb-0" style="font-size: 0.85rem;">
+                        <strong><i class="bi bi-info-circle"></i> About Backups:</strong>
+                        <hr class="my-2">
+                        <p class="mb-1">When importing tags, the system:</p>
+                        <ul class="mb-1 ps-3">
+                            <li>Matches VMs by VMID, Node, and Type</li>
+                            <li><strong>Replaces</strong> all existing tags with imported ones</li>
+                        </ul>
+                    </div>
+                </div>
+                </div>
+                {% endif %}
+
+                <!-- Page Content -->
+                <div class="col py-3 px-4">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <!-- Bootstrap JS (for alerts) -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+        <!-- Custom JS -->
+        <script src="{{ url_for('static', filename='main.js') }}"></script>
+    </footer>
+</body>
+</html>
