@@ -14,6 +14,7 @@ from backup_utils import (
 
 app = Flask(__name__)
 app.secret_key = "PI2synP8sB9gJjpDzSImXifR" # Not used
+app.jinja_env.add_extension('jinja2.ext.do')
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -205,6 +206,29 @@ def api_bulk_tag_update():
             node = vm.get("node")
             vm_type = vm.get("type")
             current_tags = vm.get("tags", "")
+            
+            # If node or vm_type is missing (from VMs not on current page)
+            # we need to find that info from the current VM list
+            if not node or not vm_type:
+                try:
+                    # Get fresh VM data from the API
+                    all_vms = get_all_vms()
+                    # Find this VM in the list
+                    for current_vm in all_vms:
+                        if current_vm.get("vmid") == vmid:
+                            node = current_vm.get("node")
+                            vm_type = current_vm.get("type")
+                            current_tags = current_vm.get("tags", "")
+                            break
+                except Exception as e:
+                    logging.error(f"Error fetching VM data for VMID {vmid}: {e}")
+                    results["failed"] += 1
+                    results["failures"].append({
+                        "vmid": vmid,
+                        "name": vm.get("name", f"VM {vmid}"),
+                        "error": f"Could not retrieve VM data: {str(e)}"
+                    })
+                    continue  # Skip to next VM
             
             # Convert current tags to a list
             current_tag_list = [tag.strip() for tag in current_tags.split(";") if tag.strip()] if current_tags else []
