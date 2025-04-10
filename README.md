@@ -8,33 +8,33 @@ A lightweight, open-source web interface to bulk manage Proxmox VM and container
 ![Python](https://img.shields.io/badge/python-3.6%2B-blue)
 ![Flask](https://img.shields.io/badge/flask-3.1.0-green)
 
-## 🌟 Overview
+## Overview
 
 ProxTagger provides a simple yet powerful web interface to manage tags for your Proxmox VMs and containers. It simplifies tag management with individual and bulk operations, while also offering backup and restore functionality to safeguard your tagging system which is currently not backed up by Promox Backup Server. The interface uses dynamic tables for easy sorting, pagination, and advanced searching.
 
-## ✨ Features
+## Features
 
-- 🏷️ **Comprehensive Tag Management**
-  - View all VMs and containers with their tags in an interactive table (powered by DataTables) supporting sorting and pagination.
-  - Add/remove tags to individual VMs with a clean, intuitive interface and improved visual feedback.
-  - Perform bulk operations to add or remove tags across multiple VMs, with selection persisting across pages/filters.
-  - Button to easily clear the current VM selection in the bulk panel.
-- 🔍 **Advanced Filtering & Search**
-  - Filter VMs/Containers by Host, VMID range, and Name pattern using the dedicated filter panel.
-  - Select all VMs/Containers that match the current filter criteria with a single click.
-  - Global search bar supporting **regular expressions** for powerful table filtering across all columns.
-- 💾 **Backup & Restore**
-  - Download tag configurations as JSON files.
-  - Restore tags from previous backups.
-  - Automatic tag backup on initial setup.
-- 🚀 **Interactive UI**
-  - Dynamic table enhances Browse large numbers of VMs/Containers.
-  - Consistent toast notifications provide feedback for user actions.
-- 🔒 **Security & Flexibility**
-  - Uses Proxmox API tokens for secure authentication.
-  - Uses official Promox APIs.
+- **Comprehensive Tag Management**
+   - View all VMs and containers with their tags in an interactive table (powered by DataTables) supporting sorting and pagination.
+   - Add/remove tags to individual VMs with a clean, intuitive interface and improved visual feedback.
+   - Perform bulk operations to add or remove tags across multiple VMs, with selection persisting across pages/filters.
+   - Button to easily clear the current VM selection in the bulk panel.
+- **Advanced Filtering & Search**
+   - Filter VMs/Containers by Host, VMID range, and Name pattern using the dedicated filter panel.
+   - Select all VMs/Containers that match the current filter criteria with a single click.
+   - Global search bar supporting **regular expressions** for powerful table filtering across all columns.
+- **Backup & Restore**
+   - Download tag configurations as JSON files.
+   - Restore tags from previous backups.
+   - Automatic tag backup on initial setup.
+- **Interactive UI**
+   - Dynamic table enhances Browse large numbers of VMs/Containers.
+   - Consistent toast notifications provide feedback for user actions.
+- **Security & Flexibility**
+   - Uses Proxmox API tokens for secure authentication.
+   - Uses official Promox APIs.
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -63,7 +63,7 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
 4.  Access the web interface:
     Open your browser and navigate to `http://localhost:5000` (it also binds to other interfaces, you can change it in `app.py`)
 
-## ⚙️ Configuration
+## Configuration
 
 ### API Token Setup
 
@@ -91,7 +91,7 @@ To create an API token:
 
 2.  After successful connection, the system automatically creates an initial tag backup
 
-## 📋 Usage Guide
+## Usage Guide
 
 ### VM/Container Table
 
@@ -116,7 +116,7 @@ To create an API token:
 - **Import Tags**: Click "Import Tags" and select a previously exported backup file.
 - **Note**: When restoring tags, the system matches VMs by VMID, Node, and Type, and replaces all existing tags with imported ones. Feedback is provided if VMs from the backup file cannot be found.
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -125,7 +125,7 @@ To create an API token:
 - **SSL Errors**: Toggle off SSL verification if you're using self-signed certificates.
 - **Regex Search Issues**: Ensure you are using valid JavaScript regex syntax in the search bar. Invalid patterns may cause errors or unexpected results (check dev console).
 
-## 🛠️ Technical Details
+## Technical Details
 
 ProxTagger is built using:
 
@@ -133,7 +133,7 @@ ProxTagger is built using:
 - **Frontend**: Bootstrap 5 for styling, [DataTables](https://datatables.net/) for table interactivity, and custom JavaScript organized into ES Modules.
 - **Storage**: Local configuration file (`config.json`) for connection details.
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
@@ -143,11 +143,11 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 4.  Push to the Branch
 5.  Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 - [Flask](https://flask.palletsprojects.com/) - The web framework used
 - [Bootstrap](https://getbootstrap.com/) - UI framework
