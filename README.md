@@ -38,15 +38,64 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
 
 ### Prerequisites
 
-- Python 3.6+
 - A Proxmox VE server
 - API token with appropriate permissions (`VM.Audit` and `VM.Config.Options`)
+- Docker (if running in a container)
+- Python 3.6+ (if building locally)
+
+### Running with Docker
+
+You can run ProxTagger using pre-built Docker images available on [Docker Hub](https://hub.docker.com/r/reginleif88/proxtagger).
+
+#### Using `docker compose`
+
+To use Docker compose you need to create a docker-compose.yml or use the one in the repository to run the ProxTagger container.
+
+```yaml
+services:
+  proxtagger:
+    image: reginleif88/proxtagger:latest
+    container_name: proxtagger_app
+    ports:
+      - "5660:5660"
+    environment:
+      - PORT=5660
+    volumes:
+      - proxtagger_config:/app
+    restart: unless-stopped
+
+volumes:
+  proxtagger_config:
+    name: proxtagger_config
+    driver: local
+```
+
+Execute `docker compose up -d` and then open your browser and navigate to `http://localhost:5660`
+
+#### Using `docker run`
+
+This command starts the container, maps host port 5660 to the application's port 8080 inside the container, sets the internal port using an environment variable, uses a persistent volume for configuration, and runs the latest image.
+
+```yaml
+# Pull the latest image
+docker pull reginleif88/proxtagger:latest
+
+# Run the container
+docker run --detach --name proxtagger_app \
+  --publish 5660:5660 \
+  --env PORT=5660 \
+  --volume proxtagger_config:/app \
+  --restart unless-stopped \
+  reginleif88/proxtagger:latest
+```
+
+Open your browser and navigate to `http://localhost:5660`
 
 ### Installation
 
 1.  Clone the repository:
     ```bash
-    git clone [https://github.com/reginleif88/proxtagger.git](https://github.com/reginleif88/proxtagger.git)
+    git clone https://github.com/reginleif88/proxtagger.git
     cd proxtagger
     ```
 
@@ -61,7 +110,7 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
     ```
 
 4.  Access the web interface:
-    Open your browser and navigate to `http://localhost:5000` (it also binds to other interfaces, you can change it in `app.py`)
+    Open your browser and navigate to `http://localhost:5660` (it also binds to other interfaces, you can change it in `app.py`)
 
 ## Configuration
 
