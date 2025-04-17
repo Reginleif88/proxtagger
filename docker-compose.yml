@@ -1,0 +1,16 @@
+services:
+  proxtagger:
+    image: reginleif88/proxtagger:latest
+    container_name: proxtagger_app
+    ports:
+      - "5660:5660"
+    environment:
+      - PORT=5660
+    volumes:
+      - proxtagger_config:/app
+    restart: unless-stopped
+
+volumes:
+  proxtagger_config:
+    name: proxtagger_config
+    driver: local
