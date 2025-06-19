@@ -3,7 +3,7 @@ Data models and validation for conditional tagging rules
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from enum import Enum
 
@@ -144,8 +144,8 @@ class ConditionalRule:
         self.conditions = conditions or RuleConditionGroup()
         self.actions = actions or RuleAction()
         self.schedule = schedule or RuleSchedule()
-        self.created_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.created_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
         self.last_run = None
         self.stats = {
             "total_matches": 0,
@@ -239,7 +239,7 @@ class ExecutionResult:
         self.rule_id = rule_id
         self.rule_name = rule_name
         self.success = success
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc)
         self.matched_vms = []
         self.tags_added = {}
         self.tags_removed = {}

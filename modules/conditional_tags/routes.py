@@ -14,7 +14,7 @@ from config import load_config
 import logging
 import json
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -275,7 +275,7 @@ def export_rules():
         # Convert rules to exportable format
         export_data = {
             "export_info": {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "version": "1.0",
                 "rule_count": len(rules)
             },
@@ -287,7 +287,7 @@ def export_rules():
         buffer = io.BytesIO(json_str.encode('utf-8'))
         
         # Generate filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         filename = f"conditional_rules_{timestamp}.json"
         
         return send_file(

@@ -9,3 +9,32 @@ venv
 # Conditional tags storage files
 conditional_rules.json
 rule_execution_history.json
+
+# Test artifacts and coverage reports
+htmlcov/
+.coverage
+.pytest_cache/
+*.coverage
+coverage.xml
+
+# Test logs and temporary files
+/tmp/proxtagger_*
+tests/test_*.log
+tests/operation_log_*.json
+
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

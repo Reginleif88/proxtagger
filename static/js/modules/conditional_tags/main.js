@@ -1207,8 +1207,14 @@ function loadRuleIntoForm(rule) {
         const conditionItems = document.querySelectorAll('.condition-item');
         const lastItem = conditionItems[conditionItems.length - 1];
         
-        // Set field, operator, and value
+        // Set field first
         lastItem.querySelector('.condition-field').value = condition.field;
+        
+        // Trigger field change to update operator options BEFORE setting operator
+        const fieldSelect = lastItem.querySelector('.condition-field');
+        fieldSelect.dispatchEvent(new Event('change'));
+        
+        // Now set operator and value after operator options are updated
         lastItem.querySelector('.condition-operator').value = condition.operator;
         lastItem.querySelector('.condition-value').value = condition.value;
         
@@ -1219,10 +1225,6 @@ function loadRuleIntoForm(rule) {
                 logicRadio.checked = true;
             }
         }
-        
-        // Trigger field change to update operator options
-        const fieldSelect = lastItem.querySelector('.condition-field');
-        fieldSelect.dispatchEvent(new Event('change'));
     });
     
     // Load THEN actions

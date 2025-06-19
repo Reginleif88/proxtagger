@@ -6,7 +6,7 @@ import json
 import os
 import logging
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from .models import ConditionalRule, ExecutionResult
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ class RuleStorage:
             data = {
                 'rules': [rule.to_dict() for rule in self.rules.values()],
                 'version': '1.0',
-                'updated_at': datetime.utcnow().isoformat()
+                'updated_at': datetime.now(timezone.utc).isoformat()
             }
             with open(self.storage_file, 'w') as f:
                 json.dump(data, f, indent=2)
@@ -104,7 +104,7 @@ class RuleStorage:
                     raise ValueError(f"Rule with name '{rule.name}' already exists")
         
         # Update timestamp
-        rule.updated_at = datetime.utcnow()
+        rule.updated_at = datetime.now(timezone.utc)
         
         # Validate updated rule
         errors = rule.validate()
