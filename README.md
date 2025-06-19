@@ -7,10 +7,11 @@ A lightweight, open-source web interface to bulk manage Proxmox VM and container
 ![License](https://img.shields.io/github/license/Reginleif88/proxtagger?label=license)
 ![Python](https://img.shields.io/badge/python-3.6%2B-blue)
 ![Flask](https://img.shields.io/badge/flask-3.1.0-green)
+[![Support](https://img.shields.io/badge/Support-FF5F5F?logo=ko-fi&logoColor=white)](https://ko-fi.com/reginleif88)
 
 ## Overview
 
-ProxTagger provides a simple yet powerful web interface to manage tags for your Proxmox VMs and containers. It simplifies tag management with individual and bulk operations, automated conditional tagging rules, while also offering backup and restore functionality to safeguard your tagging system which is currently not backed up by Promox Backup Server. The interface uses dynamic tables for easy sorting, pagination, and advanced searching.
+ProxTagger provides a simple yet powerful web interface to manage tags for your Proxmox VMs and containers. It simplifies tag management with individual and bulk operations, automated conditional tagging rules, while also offering backup and restore functionality to safeguard your tagging system which is currently not backed up by Promox Backup Server.
 
 ## Features
 
@@ -33,7 +34,6 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
 - **Backup & Restore**
    - Download tag configurations as JSON files.
    - Restore tags from previous backups.
-   - Automatic tag backup on initial setup.
 - **Interactive UI**
    - Dynamic table to browse large numbers of VMs/Containers.
    - Consistent toast notifications provide feedback for user actions.
@@ -203,7 +203,7 @@ ProxTagger is built using:
 
 - **Backend**: Python with Flask web framework. Uses Jinja2 for templating.
 - **Frontend**: Bootstrap 5 for styling, [DataTables](https://datatables.net/) for table interactivity, and custom JavaScript organized into ES Modules.
-- **Storage**: Local configuration file (`config.json`) for connection details.
+- **Storage**: Local .json files for connection details and data.
 
 ## Contributing
 
