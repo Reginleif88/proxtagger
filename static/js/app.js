@@ -1,6 +1,13 @@
 // Example of app.js *after* removing the problematic block:
 
 document.addEventListener('DOMContentLoaded', function() {
+    // Only initialize VM table features if we're on a page that has the VM table
+    const vmTable = document.getElementById('vmTable');
+    if (!vmTable) {
+        console.log('VM table not found - skipping main app initialization (likely on conditional tags page)');
+        return;
+    }
+
     console.group('ProxTagger Initialization');
     console.time('Total Initialization');
 

@@ -2,7 +2,7 @@
 
 ![Overview image](https://res.cloudinary.com/dh1qu2two/image/upload/v1743380893/Screenshot_2025-03-31_022536_hbbews.png)
 
-A lightweight, open-source web interface to bulk manage Proxmox VM and container tags with backup and restore functionality.
+A lightweight, open-source web interface to bulk manage Proxmox VM and container tags with backup and restore functionality, featuring automated conditional tagging rules.
 
 ![License](https://img.shields.io/github/license/Reginleif88/proxtagger?label=license)
 ![Python](https://img.shields.io/badge/python-3.6%2B-blue)
@@ -10,7 +10,7 @@ A lightweight, open-source web interface to bulk manage Proxmox VM and container
 
 ## Overview
 
-ProxTagger provides a simple yet powerful web interface to manage tags for your Proxmox VMs and containers. It simplifies tag management with individual and bulk operations, while also offering backup and restore functionality to safeguard your tagging system which is currently not backed up by Promox Backup Server. The interface uses dynamic tables for easy sorting, pagination, and advanced searching.
+ProxTagger provides a simple yet powerful web interface to manage tags for your Proxmox VMs and containers. It simplifies tag management with individual and bulk operations, automated conditional tagging rules, while also offering backup and restore functionality to safeguard your tagging system which is currently not backed up by Promox Backup Server. The interface uses dynamic tables for easy sorting, pagination, and advanced searching.
 
 ## Features
 
@@ -23,12 +23,19 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
    - Filter VMs/Containers by Host, VMID range, and Name pattern using the dedicated filter panel.
    - Select all VMs/Containers that match the current filter criteria with a single click.
    - Global search bar supporting **regular expressions** for powerful table filtering across all columns.
+- **Conditional Tag Management**
+   - Create automated rules that apply or remove tags based on VM/container properties.
+   - Advanced condition builder with AND/OR logic operators for complex filtering.
+   - THEN/ELSE actions - different behaviors for matching vs non-matching VMs.
+   - Schedule rules to run automatically via cron expressions or execute manually.
+   - Test mode with dry-run capabilities to preview changes.
+   - Rule execution history and comprehensive logging.
 - **Backup & Restore**
    - Download tag configurations as JSON files.
    - Restore tags from previous backups.
    - Automatic tag backup on initial setup.
 - **Interactive UI**
-   - Dynamic table enhances Browse large numbers of VMs/Containers.
+   - Dynamic table to browse large numbers of VMs/Containers.
    - Consistent toast notifications provide feedback for user actions.
 - **Security & Flexibility**
    - Uses Proxmox API tokens for secure authentication.
@@ -158,6 +165,22 @@ To create an API token:
     - Choose "Add Tags" or "Remove Tags" operation.
     - Select existing tags or create new ones (new tags only possible in "Add" mode).
     - Click "Apply" to execute the changes on all selected VMs/Containers.
+
+### Conditional Tags
+
+- **Access**: Click "Conditional Tags" in the navigation menu to access the automated tagging system.
+- **Quick Templates**: Use pre-built templates for common tagging scenarios:
+  - **Debian LXC Tagging**: Automatically tag all Debian-based containers as "deb-lxc"
+  - **HA Validation**: Add "HA" tag to VMs with both replication and HA enabled, remove from others
+  - **High-Resource VMs**: Tag VMs with more than 4 cores and 8GB RAM as "high-resource"
+- **Custom Rules**: Create your own rules using the rule builder:
+  - Add conditions based on VM properties (CPU, memory, OS type, HA status, etc.)
+  - Use AND/OR logic to combine multiple conditions
+  - Set THEN actions (tags to add/remove for matching VMs)
+  - Set ELSE actions (tags to add/remove for non-matching VMs)
+  - Configure scheduling with cron expressions for automatic execution
+- **Testing**: Use "Test Rule" to perform a dry-run and preview which VMs would be affected.
+- **Management**: View, edit, delete, and execute rules from the rules table. Monitor execution history and results.
 
 ### Backup & Restore
 

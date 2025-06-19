@@ -1,0 +1,346 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="row">
+    <div class="col-12">
+        <!-- Introduction Panel -->
+        <div class="alert alert-info mb-4">
+            <h5 class="alert-heading"><i class="bi bi-gear-fill"></i> Conditional Tag Management</h5>
+            <p><strong>Automate your tagging:</strong> Create rules that automatically apply or remove tags based on VM/container properties.</p>
+            <p class="mb-2"><strong>Example rules:</strong></p>
+            <ul class="mb-2">
+                <li><strong>HA Validation:</strong> Tag VMs that are both replicated and in HA groups</li>
+                <li><strong>OS Classification:</strong> Tag all Debian-based LXC containers as "deb-lxc"</li>
+                <li><strong>Resource Tagging:</strong> Tag high-resource VMs (>8GB RAM, >4 cores)</li>
+            </ul>
+            <p class="mb-0"><strong>Rules can run manually or on a schedule</strong> to keep your tags automatically up-to-date.</p>
+        </div>
+
+        <!-- Quick Templates Panel -->
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <strong><i class="bi bi-lightning-fill"></i> Quick Templates</strong>
+                <small class="text-muted">Click to load a template into the rule builder</small>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <button class="btn btn-outline-primary w-100 template-btn" data-template="debian-lxc">
+                            <i class="bi bi-box"></i> Debian LXC Tagging
+                            <small class="d-block text-muted">Tag Debian containers as "deb-lxc"</small>
+                        </button>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button class="btn btn-outline-success w-100 template-btn" data-template="ha-validation">
+                            <i class="bi bi-shield-check"></i> HA Validation
+                            <small class="d-block text-muted">Add/remove "ha" tag based on replication + HA status</small>
+                        </button>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <button class="btn btn-outline-warning w-100 template-btn" data-template="high-resource">
+                            <i class="bi bi-cpu"></i> High-Resource VMs
+                            <small class="d-block text-muted">Tag VMs with >4 cores and >8GB RAM</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rule Builder Panel -->
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <strong><i class="bi bi-plus-circle"></i> Rule Builder</strong>
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-secondary me-2" id="propertiesStatus">Loading...</span>
+                    <button class="btn btn-sm btn-outline-secondary" id="toggleRuleBuilderBtn" type="button" data-bs-toggle="collapse" data-bs-target="#ruleBuilderContainer" aria-expanded="false" aria-controls="ruleBuilderContainer">
+                        <i class="bi bi-chevron-down"></i> Show/Hide
+                    </button>
+                </div>
+            </div>
+            <div class="collapse show" id="ruleBuilderContainer">
+                <div class="card-body" id="ruleBuilderPanel">
+                    <!-- Rule Basic Info -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Rule Name</label>
+                            <input type="text" class="form-control" id="ruleName" placeholder="Enter rule name...">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Description (Optional)</label>
+                            <input type="text" class="form-control" id="ruleDescription" placeholder="Describe what this rule does...">
+                        </div>
+                    </div>
+
+                    <!-- Conditions Section -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Conditions</label>
+                            <div class="card bg-light">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span>IF the following logic is met:</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <small class="text-muted">Logic Preview:</small>
+                                        <code id="logicPreview" class="small">No conditions yet</code>
+                                    </div>
+                                </div>
+                                <div class="card-body" id="conditionsContainer">
+                                    <div class="text-center text-muted p-3" id="conditionsPlaceholder">
+                                        <i class="bi bi-plus-circle-dotted fs-1"></i>
+                                        <p class="mb-0">Click "Add Condition" below to start building your rule</p>
+                                        <small class="text-muted">You can chain conditions with AND/OR operators</small>
+                                    </div>
+                                </div>
+                                <div class="card-footer">
+                                    <button type="button" class="btn btn-sm btn-success" id="addConditionBtn">
+                                        <i class="bi bi-plus"></i> Add Condition
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions Section -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Actions</label>
+                            
+                            <!-- THEN Actions -->
+                            <div class="card bg-light mb-3">
+                                <div class="card-header">
+                                    <span><strong>THEN</strong> perform these actions on VMs that <em>match</em> the conditions:</span>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Add Tags</label>
+                                            <div class="input-group mb-2">
+                                                <input type="text" class="form-control" id="addTagInput" placeholder="Enter tag to add...">
+                                                <button class="btn btn-success" type="button" id="addTagBtn">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2" id="addTagsList">
+                                                <!-- Add tags will appear here -->
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Remove Tags</label>
+                                            <div class="input-group mb-2">
+                                                <input type="text" class="form-control" id="removeTagInput" placeholder="Enter tag to remove...">
+                                                <button class="btn btn-danger" type="button" id="removeTagBtn">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2" id="removeTagsList">
+                                                <!-- Remove tags will appear here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- ELSE Actions -->
+                            <div class="card bg-light">
+                                <div class="card-header d-flex justify-content-between align-items-center">
+                                    <span><strong>ELSE</strong> perform these actions on VMs that <em>don't match</em> the conditions:</span>
+                                    <small class="text-muted">(Optional)</small>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Add Tags</label>
+                                            <div class="input-group mb-2">
+                                                <input type="text" class="form-control" id="elseAddTagInput" placeholder="Enter tag to add...">
+                                                <button class="btn btn-success" type="button" id="elseAddTagBtn">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2" id="elseAddTagsList">
+                                                <!-- ELSE add tags will appear here -->
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Remove Tags</label>
+                                            <div class="input-group mb-2">
+                                                <input type="text" class="form-control" id="elseRemoveTagInput" placeholder="Enter tag to remove...">
+                                                <button class="btn btn-danger" type="button" id="elseRemoveTagBtn">
+                                                    <i class="bi bi-plus"></i>
+                                                </button>
+                                            </div>
+                                            <div class="d-flex flex-wrap gap-2" id="elseRemoveTagsList">
+                                                <!-- ELSE remove tags will appear here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Schedule Section -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Schedule (Optional)</label>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="enableSchedule">
+                                                <label class="form-check-label fw-bold" for="enableSchedule">
+                                                    Enable Automatic Execution
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label">Schedule Preset</label>
+                                            <select class="form-select" id="schedulePreset" disabled>
+                                                <option value="">Custom cron expression</option>
+                                                <option value="0 */6 * * *">Every 6 hours</option>
+                                                <option value="0 0 * * *">Daily at midnight</option>
+                                                <option value="0 0 * * 0">Weekly (Sunday)</option>
+                                                <option value="0 0 1 * *">Monthly</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <label class="form-label">Cron Expression</label>
+                                            <input type="text" class="form-control" id="cronExpression" placeholder="0 */6 * * *" disabled>
+                                            <small class="form-text text-muted">Format: minute hour day month weekday</small>
+                                            <div id="cronPreview" class="mt-2" style="display: none;">
+                                                <div class="alert alert-info py-2 mb-0">
+                                                    <small>
+                                                        <strong>Next runs:</strong>
+                                                        <div id="cronNextRuns" class="mt-1"></div>
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div id="cronError" class="mt-2" style="display: none;">
+                                                <div class="alert alert-danger py-2 mb-0">
+                                                    <small id="cronErrorMessage"></small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Rule Actions -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <button type="button" class="btn btn-outline-info me-2" id="testRuleBtn">
+                                <i class="bi bi-play-circle"></i> Test Rule (Dry Run)
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="clearRuleBtn">
+                                <i class="bi bi-x-circle"></i> Clear Form
+                            </button>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-primary" id="saveRuleBtn">
+                                <i class="bi bi-check2"></i> Save Rule
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Rules List -->
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <strong><i class="bi bi-list-ul"></i> Conditional Rules</strong>
+                <div class="btn-group" role="group">
+                    <a href="/conditional-tags/export-rules" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-download"></i> Export Rules
+                    </a>
+                    <button type="button" class="btn btn-outline-success btn-sm" id="importRulesBtn">
+                        <i class="bi bi-upload"></i> Import Rules
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table id="rulesTable" class="table table-striped table-hover align-middle mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th scope="col">📝 Name</th>
+                                <th scope="col">📄 Description</th>
+                                <th scope="col">📅 Schedule</th>
+                                <th scope="col">📊 Stats</th>
+                                <th scope="col">🕒 Last Run</th>
+                                <th scope="col">⚙️ Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Rules will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Execution History -->
+        <div class="card">
+            <div class="card-header">
+                <strong><i class="bi bi-clock-history"></i> Recent Executions</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table id="historyTable" class="table table-sm align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th scope="col">Rule</th>
+                                <th scope="col">Timestamp</th>
+                                <th scope="col">Result</th>
+                                <th scope="col">VMs Matched</th>
+                                <th scope="col">Tags Added</th>
+                                <th scope="col">Tags Removed</th>
+                                <th scope="col">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr>
+                                <td colspan="7" class="text-center text-muted p-4">
+                                    No executions yet. Create and run some rules to see history here.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="importRulesInput" accept=".json" style="display: none;">
+
+<!-- Test Results Modal -->
+<div class="modal fade" id="testResultsModal" tabindex="-1" aria-labelledby="testResultsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="testResultsModalLabel">
+                    <i class="bi bi-play-circle"></i> Rule Test Results
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="testResultsContent">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Load conditional tags JavaScript module -->
+<script type="module" src="{{ url_for('static', filename='js/modules/conditional_tags/main.js') }}"></script>
+{% endblock %}

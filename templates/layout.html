@@ -203,7 +203,7 @@
         <!-- Navbar -->
         <nav class="navbar navbar-dark bg-dark mb-4">
             <div class="container-fluid d-flex justify-content-between align-items-center">
-                <span class="navbar-brand">🧩 ProxTagger - Proxmox Tag Manager Tool</span>
+                <a href="/" class="navbar-brand text-decoration-none">🧩 ProxTagger - Proxmox Tag Manager Tool</a>
                 {% if config_ok is defined %}
                     <span class="badge {% if config_ok %}bg-success{% else %}bg-danger{% endif %}">
                         {% if config_ok %}🔐 Connected{% else %}🔓 Not Connected{% endif %}
@@ -236,6 +236,18 @@
                 {% if config_ok is defined and config_ok %}
                 <div class="sidebar col-md-3 col-lg-3 col-xl-2 col-sm-4 col-5 p-0">
                     <div class="sidebar-header p-3 border-bottom">
+                        <h6 class="mb-0 fw-bold">Navigation</h6>
+                    </div>
+                <a href="/" class="sidebar-item d-flex align-items-center text-decoration-none text-dark">
+                    <span class="sidebar-icon"><i class="bi bi-house-fill"></i></span>
+                    <span class="sidebar-text">Tag Management</span>
+                </a>
+                <a href="/conditional-tags" class="sidebar-item d-flex align-items-center text-decoration-none text-dark">
+                    <span class="sidebar-icon"><i class="bi bi-gear-fill"></i></span>
+                    <span class="sidebar-text">Conditional Tags</span>
+                </a>
+                
+                    <div class="sidebar-header p-3 border-bottom border-top">
                         <h6 class="mb-0 fw-bold">Backup Actions</h6>
                     </div>
                 <a href="/backup-tags" class="sidebar-item d-flex align-items-center text-decoration-none text-dark">
@@ -277,6 +289,9 @@
         
         <!-- Load our modular JavaScript as ES modules -->
         <script type="module" src="{{ url_for('static', filename='js/app.js') }}"></script>
+        
+        <!-- Page-specific JavaScript -->
+        {% block extra_js %}{% endblock %}
     </footer>
 </body>
 </html>

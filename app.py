@@ -11,10 +11,14 @@ from backup_utils import (
     create_backup_file, 
     restore_from_backup_data
 )
+from modules.conditional_tags import conditional_tags_bp
 
 app = Flask(__name__)
 app.secret_key = "PI2synP8sB9gJjpDzSImXifR" # Not used
 app.jinja_env.add_extension('jinja2.ext.do')
+
+# Register blueprints
+app.register_blueprint(conditional_tags_bp)
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -333,4 +337,4 @@ def restore_tags():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0")
+    app.run(debug=True, host="0.0.0.0")
