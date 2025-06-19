@@ -1,6 +1,6 @@
 # 🧩 ProxTagger
 
-![Overview image](https://res.cloudinary.com/dh1qu2two/image/upload/v1743380893/Screenshot_2025-03-31_022536_hbbews.png)
+![Overview image](https://res.cloudinary.com/dh1qu2two/image/upload/v1750360285/Screenshot_2025-06-19_211112_iiiic8.png)
 
 A lightweight, open-source web interface to bulk manage Proxmox VM and container tags with backup and restore functionality, featuring automated conditional tagging rules.
 
