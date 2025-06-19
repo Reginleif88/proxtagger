@@ -5,3 +5,7 @@ __pycache__/
 .Python
 config.json
 venv
+
+# Conditional tags storage files
+conditional_rules.json
+rule_execution_history.json
