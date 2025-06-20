@@ -306,10 +306,23 @@
 <div class="alert alert-info mb-4">
     <h5 class="alert-heading"><i class="bi bi-info-circle"></i> API Token & Backup</h5>
     <p>To use ProxTagger, you'll need a Proxmox API token with these permissions:</p>
+    
+    <h6>Required permissions:</h6>
     <ul>
         <li><code>VM.Audit</code> - For listing VMs and containers</li>
         <li><code>VM.Config.Options</code> - For reading and modifying tags</li>
     </ul>
+    
+    <h6>Optional permissions (for conditional tagging features):</h6>
+    <ul>
+        <li><code>Sys.Audit</code> - To get HA status and cluster resources</li>
+        <li><code>VM.Backup</code> - To check backup status</li>
+        <li><code>VM.Snapshot</code> - To check snapshot information</li>
+        <li><code>Datastore.Audit</code> - May be needed for backup information</li>
+    </ul>
+    
+    <p><small>Without the optional permissions, basic tagging functionality will work, but some conditional tagging rules based on HA status, backups, or snapshots may not function properly.</small></p>
+    
     <p>Your API token and connection details will be saved in <code>config.json</code> in the project directory.</p>
     <p><strong>Note: </strong>When you click "Save & Connect", the system will automatically download an initial tag backup file to your computer.</p>
 </div>

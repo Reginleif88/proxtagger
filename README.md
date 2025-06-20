@@ -46,7 +46,7 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
 ### Prerequisites
 
 - A Proxmox VE server
-- API token with appropriate permissions (`VM.Audit` and `VM.Config.Options`)
+- API token with appropriate permissions (see API Token Setup section for details)
 - Docker (if running in a container)
 - Python 3.6+ (if building locally)
 
@@ -125,8 +125,17 @@ Open your browser and navigate to `http://localhost:5660`
 
 You'll need a Proxmox API token with the following permissions:
 
+**Required permissions:**
 - `VM.Audit` (to list VMs and containers)
 - `VM.Config.Options` (to read and modify tags)
+
+**Optional permissions (for conditional tagging features):**
+- `Sys.Audit` (to get HA status and cluster resources)
+- `VM.Backup` (to check backup status)
+- `VM.Snapshot` (to check snapshot information)
+- `Datastore.Audit` (may be needed for backup information)
+
+Note: Without the optional permissions, basic tagging functionality will work, but some conditional tagging rules based on HA status, backups, or snapshots may not function properly.
 
 To create an API token:
 
@@ -193,6 +202,10 @@ To create an API token:
 ### Common Issues
 
 - **No VMs Visible**: Ensure your API token has `VM.Audit` and `VM.Config.Options` permissions at the appropriate level (/ or node-specific).
+- **Conditional Tagging Issues**: If certain conditional tagging properties don't work:
+  - HA properties: Requires `Sys.Audit` permission
+  - Backup status: Requires `VM.Backup` and possibly `Datastore.Audit` permissions
+  - Snapshot information: Requires `VM.Snapshot` permission
 - **Connection Failed**: Check your hostname, port and network connectivity.
 - **SSL Errors**: Toggle off SSL verification if you're using self-signed certificates.
 - **Regex Search Issues**: Ensure you are using valid JavaScript regex syntax in the search bar. Invalid patterns may cause errors or unexpected results (check dev console).

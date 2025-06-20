@@ -455,6 +455,11 @@ def get_available_vm_properties() -> Dict[str, Dict[str, Any]]:
             "description": "Current tags (semicolon-separated)",
             "example": "production;web;linux"
         },
+        "template": {
+            "type": "number",
+            "description": "Whether resource is a template",
+            "values": [0, 1]
+        },
         
         # Resource properties
         "cpu": {
@@ -509,6 +514,21 @@ def get_available_vm_properties() -> Dict[str, Dict[str, Any]]:
             "description": "Architecture",
             "values": ["amd64", "i386", "arm64"]
         },
+        "config.onboot": {
+            "type": "number",
+            "description": "Start on boot",
+            "values": [0, 1]
+        },
+        "config.protection": {
+            "type": "number", 
+            "description": "Protected from deletion",
+            "values": [0, 1]
+        },
+        "config.agent": {
+            "type": "number",
+            "description": "QEMU agent enabled",
+            "values": [0, 1]
+        },
         
         # HA properties
         "ha.enabled": {
@@ -521,12 +541,22 @@ def get_available_vm_properties() -> Dict[str, Dict[str, Any]]:
             "description": "HA state",
             "example": "started"
         },
+        "ha.group": {
+            "type": "string",
+            "description": "HA group",
+            "example": "ha_group"
+        },
         
         # Replication properties
         "replication.enabled": {
             "type": "boolean",
             "description": "Whether replication is enabled",
             "example": True
+        },
+        "replication.targets": {
+            "type": "array",
+            "description": "Replication target nodes",
+            "example": ["pve2", "pve3"]
         },
         
         # Snapshot properties
@@ -535,7 +565,6 @@ def get_available_vm_properties() -> Dict[str, Dict[str, Any]]:
             "description": "Number of snapshots",
             "example": 3
         },
-        
         # Backup properties
         "backup.has_backup": {
             "type": "boolean",
