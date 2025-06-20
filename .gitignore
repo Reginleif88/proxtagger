@@ -3,12 +3,11 @@ __pycache__/
 *$py.class
 *.so
 .Python
-config.json
 venv
 
-# Conditional tags storage files
-conditional_rules.json
-rule_execution_history.json
+# Data directory (contains all persistent user data)
+data/
+!data/README.md
 
 # Test artifacts and coverage reports
 htmlcov/

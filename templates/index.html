@@ -2,6 +2,66 @@
 {% block content %}
 
 {% if config_ok %}
+
+<!-- Migration Warning Banner -->
+{% if migration_result and (migration_result.files_migrated or migration_result.warnings) %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <h5 class="alert-heading"><i class="bi bi-exclamation-triangle"></i> Data Migration Detected</h5>
+    
+    {% if migration_result.files_migrated %}
+    <p><strong>✅ Good news!</strong> We automatically migrated your data files to the new structure:</p>
+    <ul>
+        {% for file in migration_result.files_migrated %}
+        <li><code>{{ file }}</code> → <code>data/{{ file }}</code></li>
+        {% endfor %}
+    </ul>
+    
+    {% if migration_result.backup_dir %}
+    <p><strong>🛡️ Safety:</strong> Your original files have been backed up to <code>{{ migration_result.backup_dir }}</code></p>
+    {% endif %}
+    
+    {% if migration_result.is_docker %}
+        {% if migration_result.whole_app_mounted %}
+        <div class="alert alert-danger mt-3">
+            <strong>🚨 CRITICAL: Docker Volume Update Required</strong>
+            <p>You're running in Docker with the entire <code>/app</code> directory mounted. This prevents code updates!</p>
+            <p><strong>To fix this and get future updates:</strong></p>
+            <ol class="mb-0">
+                <li><strong>Stop the container:</strong> <code>docker compose down</code></li>
+                <li><strong>Update your docker-compose.yml</strong> to mount <code>./data:/app/data</code> instead of <code>./:/app</code></li>
+                <li><strong>Restart:</strong> <code>docker compose up -d</code></li>
+                <li>Your data has been migrated automatically and will persist!</li>
+            </ol>
+        </div>
+        {% else %}
+        <div class="alert alert-success mt-3">
+            <strong>✅ Great! You're using the new Docker volume structure.</strong>
+            <p>Your data will persist across container updates. You can safely pull new ProxTagger images.</p>
+        </div>
+        {% endif %}
+    {% else %}
+    <div class="alert alert-info mt-3">
+        <strong>📋 Next Steps:</strong>
+        <p>If you're using Docker, update your configuration to mount <code>./data:/app/data</code> instead of the entire <code>/app</code> directory.</p>
+    </div>
+    {% endif %}
+    {% endif %}
+    
+    {% if migration_result.warnings %}
+    <div class="alert alert-danger mt-3">
+        <strong>⚠️ Migration Warnings:</strong>
+        <ul class="mb-0">
+            {% for warning in migration_result.warnings %}
+            <li>{{ warning }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+</div>
+{% endif %}
+
 <div class="row">
     <!-- Main content -->
     <div class="col-12">

@@ -312,7 +312,10 @@ function displayRules() {
             <td>
                 ${rule.schedule.enabled ? 
                     `<code class="small">${escapeHtml(rule.schedule.cron)}</code><br>
-                     <small class="text-muted">Next: ${rule.next_run ? escapeHtml(new Date(rule.next_run).toLocaleString()) : 'N/A'}</small>` : 
+                     <small class="text-muted">Next: ${rule.next_run ? 
+                        `${escapeHtml(new Date(rule.next_run).toLocaleString())}` +
+                        `<br><span class="text-primary">${getRelativeTime(rule.next_run)}</span>` : 
+                        'N/A'}</small>` : 
                     '<span class="text-muted">Manual only</span>'
                 }
             </td>
@@ -1506,6 +1509,18 @@ function validateCronExpression(cron) {
  * Generate human-readable description of cron expression
  */
 function describeCronExpression(minute, hour, day, month, weekday) {
+    const cronExpression = `${minute} ${hour} ${day} ${month} ${weekday}`;
+    
+    // Try to use cronstrue library if available
+    try {
+        if (typeof cronstrue !== 'undefined') {
+            return cronstrue.toString(cronExpression);
+        }
+    } catch (error) {
+        console.warn('Cronstrue error:', error);
+    }
+    
+    // Fallback to custom descriptions
     // Common patterns
     if (minute === '0' && hour === '0' && day === '*' && month === '*' && weekday === '*') {
         return 'Daily at midnight';
@@ -1518,11 +1533,14 @@ function describeCronExpression(minute, hour, day, month, weekday) {
     }
     if (minute === '0' && hour.startsWith('*/') && day === '*' && month === '*' && weekday === '*') {
         const hours = hour.split('/')[1];
-        return `Every ${hours} hours`;
+        return `Every ${hours} hour${hours !== '1' ? 's' : ''}`;
     }
     if (minute.startsWith('*/') && hour === '*' && day === '*' && month === '*' && weekday === '*') {
         const minutes = minute.split('/')[1];
-        return `Every ${minutes} minutes`;
+        return `Every ${minutes} minute${minutes !== '1' ? 's' : ''}`;
+    }
+    if (minute === '*' && hour === '*' && day === '*' && month === '*' && weekday === '*') {
+        return 'Every minute';
     }
     
     // Generic description
@@ -1549,45 +1567,128 @@ function describeCronExpression(minute, hour, day, month, weekday) {
 }
 
 /**
- * Calculate next few run times (simplified)
+ * Calculate next few run times using cron-parser library
  */
 function calculateNextRuns(minute, hour, day, month, weekday) {
+    const cronExpression = `${minute} ${hour} ${day} ${month} ${weekday}`;
+    
+    try {
+        // Try to use cron-parser library if available
+        if (typeof cronParser !== 'undefined') {
+            const interval = cronParser.parseExpression(cronExpression);
+            const nextRuns = [];
+            
+            for (let i = 0; i < 5; i++) {
+                const nextRun = interval.next();
+                nextRuns.push(nextRun.toDate().toLocaleString());
+            }
+            
+            return nextRuns;
+        } else {
+            // Fallback to basic calculation if library not loaded
+            return calculateBasicCronRuns(minute, hour, day, month, weekday);
+        }
+    } catch (error) {
+        console.warn('Cron parsing error:', error);
+        // Fallback to basic calculation
+        return calculateBasicCronRuns(minute, hour, day, month, weekday);
+    }
+}
+
+/**
+ * Fallback calculation for basic cron patterns
+ */
+function calculateBasicCronRuns(minute, hour, day, month, weekday) {
     const now = new Date();
     const nextRuns = [];
     
-    // This is a simplified calculator for common patterns
-    // For production, you'd want a more robust cron parser library
-    
     try {
-        for (let i = 0; i < 5; i++) {
-            const nextRun = new Date(now);
-            
-            // Simple calculation for common cases
-            if (hour.includes('*/')) {
-                const hourInterval = parseInt(hour.split('/')[1]);
-                nextRun.setHours(now.getHours() + (i + 1) * hourInterval);
-                nextRun.setMinutes(parseInt(minute) || 0);
-                nextRun.setSeconds(0);
-            } else if (minute.includes('*/')) {
-                const minuteInterval = parseInt(minute.split('/')[1]);
-                nextRun.setMinutes(now.getMinutes() + (i + 1) * minuteInterval);
-                nextRun.setSeconds(0);
-            } else {
-                // Daily at specific time
-                nextRun.setDate(now.getDate() + i + 1);
-                nextRun.setHours(parseInt(hour) || 0);
-                nextRun.setMinutes(parseInt(minute) || 0);
-                nextRun.setSeconds(0);
+        // Handle only the most common patterns safely
+        if (minute === '*' && hour === '*' && day === '*' && month === '*' && weekday === '*') {
+            // Every minute
+            for (let i = 1; i <= 5; i++) {
+                const nextRun = new Date(now.getTime() + i * 60000);
+                nextRuns.push(nextRun.toLocaleString());
             }
+        } else if (minute.includes('*/') && hour === '*' && day === '*' && month === '*' && weekday === '*') {
+            // Every N minutes
+            const intervalMinutes = parseInt(minute.split('/')[1]);
+            const currentMinute = now.getMinutes();
+            const nextMinute = Math.ceil((currentMinute + 1) / intervalMinutes) * intervalMinutes;
             
-            nextRuns.push(nextRun.toLocaleString());
+            for (let i = 0; i < 5; i++) {
+                const nextRun = new Date(now);
+                nextRun.setMinutes(nextMinute + i * intervalMinutes);
+                nextRun.setSeconds(0);
+                nextRun.setMilliseconds(0);
+                
+                // Handle hour rollover properly
+                if (nextRun <= now) {
+                    nextRun.setMinutes(nextRun.getMinutes() + intervalMinutes);
+                }
+                
+                nextRuns.push(nextRun.toLocaleString());
+            }
+        } else if (hour.includes('*/') && minute !== '*' && day === '*' && month === '*' && weekday === '*') {
+            // Every N hours at specific minute
+            const intervalHours = parseInt(hour.split('/')[1]);
+            const targetMinute = parseInt(minute);
+            const currentHour = now.getHours();
+            const currentMinute = now.getMinutes();
+            
+            // Find next valid hour
+            let nextHour = Math.ceil(currentHour / intervalHours) * intervalHours;
+            
+            for (let i = 0; i < 5; i++) {
+                const nextRun = new Date(now);
+                nextRun.setHours(nextHour + i * intervalHours);
+                nextRun.setMinutes(targetMinute);
+                nextRun.setSeconds(0);
+                nextRun.setMilliseconds(0);
+                
+                // If this time has passed today, move to next interval
+                if (nextRun <= now) {
+                    nextRun.setHours(nextRun.getHours() + intervalHours);
+                }
+                
+                nextRuns.push(nextRun.toLocaleString());
+            }
+        } else {
+            // For complex expressions, show a helpful message
+            return ['Use server-calculated times - check rules table for accurate next run times'];
         }
+        
+        return nextRuns;
+        
     } catch (error) {
-        // Fallback for complex expressions
-        return ['Next run calculation not available for complex expressions'];
+        console.warn('Basic cron calculation error:', error);
+        return ['Unable to calculate next run times for this expression'];
+    }
+}
+
+/**
+ * Get relative time string (e.g., "in 5 minutes", "in 2 hours")
+ */
+function getRelativeTime(isoString) {
+    const now = new Date();
+    const target = new Date(isoString);
+    const diffMs = target.getTime() - now.getTime();
+    
+    if (diffMs < 0) {
+        return 'overdue';
     }
     
-    return nextRuns;
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    
+    if (diffMinutes < 60) {
+        return `in ${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''}`;
+    } else if (diffHours < 24) {
+        return `in ${diffHours} hour${diffHours !== 1 ? 's' : ''}`;
+    } else {
+        return `in ${diffDays} day${diffDays !== 1 ? 's' : ''}`;
+    }
 }
 
 /**

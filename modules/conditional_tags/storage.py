@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class RuleStorage:
     """Handles persistence of conditional rules"""
     
-    def __init__(self, storage_file: str = "conditional_rules.json"):
+    def __init__(self, storage_file: str = "data/conditional_rules.json"):
         self.storage_file = storage_file
         self.rules = self._load_rules()
     
@@ -142,7 +142,7 @@ class RuleStorage:
 class ExecutionHistory:
     """Handles storage of rule execution history"""
     
-    def __init__(self, history_file: str = "rule_execution_history.json"):
+    def __init__(self, history_file: str = "data/rule_execution_history.json"):
         self.history_file = history_file
         self.max_history_per_rule = 100  # Keep last 100 executions per rule
     

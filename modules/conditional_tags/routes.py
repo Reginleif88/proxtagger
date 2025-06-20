@@ -367,7 +367,7 @@ def api_import_rules():
                 # Schedule if enabled
                 if rule.schedule.enabled:
                     scheduler = get_scheduler()
-                    scheduler.add_or_update_schedule(rule)
+                    scheduler.add_schedule(rule)
                 
                 # Add to existing names to prevent duplicates within the import
                 existing_names.append(rule_name)
@@ -403,3 +403,18 @@ def api_import_rules():
     except Exception as e:
         logger.error(f"Error importing rules: {e}")
         return jsonify({"error": f"Import failed: {str(e)}"}), 500
+
+@conditional_tags_bp.route('/api/scheduler/verify', methods=['GET'])
+def api_verify_scheduler():
+    """Debug endpoint to verify scheduler state"""
+    try:
+        scheduler = get_scheduler()
+        verification = scheduler.verify_schedules()
+        
+        # Add additional info
+        verification['schedule_info'] = scheduler.get_schedule_info()
+        
+        return jsonify(verification)
+    except Exception as e:
+        logger.error(f"Error verifying scheduler: {e}")
+        return jsonify({"error": str(e)}), 500
