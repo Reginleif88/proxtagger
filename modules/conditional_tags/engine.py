@@ -48,40 +48,53 @@ class RuleEngine:
         result = ExecutionResult(rule.id, rule.name)
         result.dry_run = dry_run
         
+        logger.info(f"[ENGINE] Starting evaluation of rule '{rule.name}' (dry_run={dry_run})")
+        logger.info(f"[ENGINE] Rule conditions: {rule.conditions}")
+        logger.info(f"[ENGINE] Evaluating against {len(vms)} VMs")
+        
         try:
             # Separate VMs into matched and non-matched groups
             matched_vms = []
             non_matched_vms = []
             
             for vm in vms:
+                vm_info = f"VM {vm.get('vmid')} ({vm.get('name')}) type={vm.get('type')}"
                 if self._evaluate_conditions(rule.conditions, vm):
                     matched_vms.append(vm)
+                    logger.debug(f"[ENGINE] {vm_info} MATCHED conditions")
                 else:
                     non_matched_vms.append(vm)
+                    logger.debug(f"[ENGINE] {vm_info} did NOT match conditions")
             
             result.matched_vms = [vm['vmid'] for vm in matched_vms]
+            logger.info(f"[ENGINE] Condition evaluation complete: {len(matched_vms)} matched, {len(non_matched_vms)} not matched")
             
             # Apply THEN actions to matched VMs
             if matched_vms:
+                logger.info(f"[ENGINE] Applying THEN actions to {len(matched_vms)} matched VMs")
                 if dry_run:
                     self._simulate_then_actions(rule, matched_vms, result)
                 else:
                     self._apply_then_actions(rule, matched_vms, result)
+            else:
+                logger.info(f"[ENGINE] No VMs matched - skipping THEN actions")
             
             # Apply ELSE actions to non-matched VMs (if any ELSE actions are defined)
             if non_matched_vms and (rule.actions.else_add_tags or rule.actions.else_remove_tags):
+                logger.info(f"[ENGINE] Applying ELSE actions to {len(non_matched_vms)} non-matched VMs")
                 if dry_run:
                     self._simulate_else_actions(rule, non_matched_vms, result)
                 else:
                     self._apply_else_actions(rule, non_matched_vms, result)
             
             result.execution_time = time.time() - start_time
-            logger.info(f"Rule '{rule.name}' evaluated: {len(matched_vms)} VMs matched, {len(non_matched_vms)} VMs non-matched")
+            logger.info(f"[ENGINE] Rule '{rule.name}' evaluation completed in {result.execution_time:.2f}s: "
+                       f"{len(matched_vms)} VMs matched, {len(non_matched_vms)} VMs non-matched")
             
         except Exception as e:
             result.success = False
             result.errors.append(str(e))
-            logger.error(f"Error evaluating rule '{rule.name}': {e}")
+            logger.error(f"[ENGINE] Error evaluating rule '{rule.name}': {e}", exc_info=True)
         
         return result
     
@@ -104,17 +117,23 @@ class RuleEngine:
         # Get the field value from the VM
         field_value = self._get_field_value(vm, condition.field)
         
+        logger.debug(f"[ENGINE] Evaluating condition for VM {vm.get('vmid')} ({vm.get('name')}): "
+                    f"field='{condition.field}', operator='{condition.operator}', "
+                    f"value='{condition.value}', field_value='{field_value}'")
+        
         # Get the appropriate operator function
         op_func = self.operators.get(condition.operator)
         if not op_func:
-            logger.warning(f"Unknown operator: {condition.operator}")
+            logger.warning(f"[ENGINE] Unknown operator: {condition.operator}")
             return False
         
         # Evaluate the condition
         try:
-            return op_func(field_value, condition.value)
+            result = op_func(field_value, condition.value)
+            logger.debug(f"[ENGINE] Condition result: {result}")
+            return result
         except Exception as e:
-            logger.error(f"Error evaluating condition: {e}")
+            logger.error(f"[ENGINE] Error evaluating condition: {e}")
             return False
     
     def _get_field_value(self, vm: Dict[str, Any], field_path: str) -> Any:

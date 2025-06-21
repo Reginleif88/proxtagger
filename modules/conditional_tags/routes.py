@@ -4,7 +4,7 @@ Routes for conditional tagging feature
 
 from flask import render_template, request, jsonify, redirect, url_for, send_file
 from . import conditional_tags_bp
-from .storage import RuleStorage, ExecutionHistory
+from .storage import ExecutionHistory, get_rule_storage
 from .engine import RuleEngine
 from .models import ConditionalRule, RuleConditionGroup, RuleAction, RuleSchedule
 from .scheduler import get_scheduler
@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 # Initialize components
-storage = RuleStorage()
+storage = get_rule_storage()
 history = ExecutionHistory()
 engine = RuleEngine()
 

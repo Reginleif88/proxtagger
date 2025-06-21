@@ -5,6 +5,7 @@ Storage operations for conditional rules
 import json
 import os
 import logging
+import threading
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
 from .models import ConditionalRule, ExecutionResult
@@ -17,6 +18,7 @@ class RuleStorage:
     def __init__(self, storage_file: str = "data/conditional_rules.json"):
         self.storage_file = storage_file
         self.rules = self._load_rules()
+        self._lock = threading.RLock()  # Use RLock to allow re-entrant locking
     
     def _load_rules(self) -> Dict[str, ConditionalRule]:
         """Load rules from storage file"""
@@ -53,9 +55,25 @@ class RuleStorage:
         """Get all rules"""
         return list(self.rules.values())
     
+    def reload_rules(self):
+        """Reload rules from disk"""
+        with self._lock:
+            logger.info("[STORAGE] Reloading rules from disk")
+            self.rules = self._load_rules()
+            logger.info(f"[STORAGE] Loaded {len(self.rules)} rules")
+    
     def get_rule(self, rule_id: str) -> Optional[ConditionalRule]:
         """Get a specific rule by ID"""
-        return self.rules.get(rule_id)
+        with self._lock:
+            # First try from memory
+            rule = self.rules.get(rule_id)
+            if rule:
+                return rule
+            
+            # If not found, reload from disk and try again
+            logger.warning(f"[STORAGE] Rule {rule_id} not found in memory, reloading from disk")
+            self.reload_rules()
+            return self.rules.get(rule_id)
     
     def create_rule(self, rule: ConditionalRule) -> ConditionalRule:
         """Create a new rule"""
@@ -203,3 +221,18 @@ class ExecutionHistory:
                 json.dump(history, f, indent=2)
         except Exception as e:
             logger.error(f"Error saving history: {e}")
+
+
+# Global storage instances
+_storage_instance = None
+_storage_lock = threading.Lock()
+
+def get_rule_storage() -> RuleStorage:
+    """Get or create the global RuleStorage instance"""
+    global _storage_instance
+    if _storage_instance is None:
+        with _storage_lock:
+            # Double-check locking pattern
+            if _storage_instance is None:
+                _storage_instance = RuleStorage()
+    return _storage_instance
