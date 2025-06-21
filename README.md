@@ -9,6 +9,12 @@ A lightweight, open-source web interface to bulk manage Proxmox VM and container
 ![Flask](https://img.shields.io/badge/flask-3.1.0-green)
 [![Support](https://img.shields.io/badge/Support-FF5F5F?logo=ko-fi&logoColor=white)](https://ko-fi.com/reginleif88)
 
+> **⚠️ Important Update for Docker Users**
+> 
+> Starting from version 1.2.1, ProxTagger uses a dedicated `/app/data` directory for persistent files instead of mounting the entire `/app` directory. This change allows seamless code updates when pulling new Docker images.
+> 
+> If upgrading from an older version, please see the [Data Persistence and Updates](#data-persistence-and-updates) section for migration instructions.
+
 ## Overview
 
 ProxTagger provides a simple yet powerful web interface to manage tags for your Proxmox VMs and containers. It simplifies tag management with individual and bulk operations, automated conditional tagging rules, while also offering backup and restore functionality to safeguard your tagging system which is currently not backed up by Promox Backup Server.
@@ -68,12 +74,12 @@ services:
     environment:
       - PORT=5660
     volumes:
-      - proxtagger_config:/app
+      - proxtagger_data:/app/data
     restart: unless-stopped
 
 volumes:
-  proxtagger_config:
-    name: proxtagger_config
+  proxtagger_data:
+    name: proxtagger_data
     driver: local
 ```
 
@@ -91,12 +97,25 @@ docker pull reginleif88/proxtagger:latest
 docker run --detach --name proxtagger_app \
   --publish 5660:5660 \
   --env PORT=5660 \
-  --volume proxtagger_config:/app \
+  --volume proxtagger_data:/app/data \
   --restart unless-stopped \
   reginleif88/proxtagger:latest
 ```
 
 Open your browser and navigate to `http://localhost:5660`
+
+#### Data Persistence and Updates
+
+ProxTagger stores all persistent data (configuration, rules, history) in the `/app/data` directory. This directory is mounted as a Docker volume to preserve your data across container updates.
+
+**Upgrading from older versions:**
+If you're upgrading from a version that mounted the entire `/app` directory:
+
+1. Stop the old container
+2. Update your docker-compose.yml or docker run command to use the new volume mount (`/app/data`)
+3. Start the new container
+4. **Migration happens automatically** - the application will detect and migrate your data files on startup
+5. Check the web interface for any migration warnings or status messages
 
 ### Installation
 

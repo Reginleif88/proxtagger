@@ -23,6 +23,19 @@ app.register_blueprint(conditional_tags_bp)
 # Set up logging
 logging.basicConfig(level=logging.INFO)
 
+# Run automatic migration check
+from auto_migrate import check_and_migrate
+migration_result = check_and_migrate()
+
+# Ensure data directory exists
+data_dir = os.path.join(os.path.dirname(__file__), 'data')
+if not os.path.exists(data_dir):
+    os.makedirs(data_dir)
+    logging.info(f"Created data directory: {data_dir}")
+
+# Store migration result for UI warnings
+app.migration_result = migration_result
+
 def validate_form_input(form):
     """Validate required fields in the form."""
     required_fields = ["host", "port", "user", "token_name", "token_value"]
@@ -95,7 +108,8 @@ def index():
             vms=vms,
             tags=tags,
             config_ok=True,
-            show_permission_warning=False
+            show_permission_warning=False,
+            migration_result=app.migration_result
         )
     except Exception as e:
         logging.error("Error fetching VMs: %s", e)

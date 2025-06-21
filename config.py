@@ -1,7 +1,7 @@
 import json
 import os
 
-CONFIG_FILE = "config.json"
+CONFIG_FILE = "data/config.json"
 DEFAULTS = {
     "PROXMOX_HOST": "",
     "PROXMOX_PORT": "8006",
