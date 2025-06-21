@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, Optional
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
-from .storage import RuleStorage, ExecutionHistory
+from .storage import ExecutionHistory, get_rule_storage
 from .engine import RuleEngine
 from .models import ConditionalRule
 from proxmox_api import get_all_vms
@@ -21,7 +21,7 @@ class RuleScheduler:
     
     def __init__(self):
         self.scheduler = BackgroundScheduler()
-        self.storage = RuleStorage()
+        self.storage = get_rule_storage()
         self.history = ExecutionHistory()
         self.engine = RuleEngine()
         self.jobs = {}  # Track job IDs for each rule
@@ -143,23 +143,28 @@ class RuleScheduler:
     
     def _execute_rule(self, rule_id: str):
         """Execute a rule (called by scheduler)"""
-        logger.info(f"Executing scheduled rule: {rule_id}")
+        logger.info(f"[SCHEDULER] Starting execution of rule: {rule_id}")
         
         # Get the rule
         rule = self.storage.get_rule(rule_id)
         if not rule or not rule.enabled:
-            logger.warning(f"Rule {rule_id} not found or disabled")
+            logger.warning(f"[SCHEDULER] Rule {rule_id} not found or disabled")
             return
+        
+        logger.info(f"[SCHEDULER] Executing rule '{rule.name}' with conditions: {rule.conditions}")
+        logger.info(f"[SCHEDULER] Rule actions - add_tags: {rule.actions.add_tags}, remove_tags: {rule.actions.remove_tags}")
         
         try:
             # Get enriched VM data
             from .api import enrich_vm_data
             vms = get_all_vms()
+            logger.info(f"[SCHEDULER] Retrieved {len(vms)} VMs from Proxmox")
             enriched_vms = []
             
             # Enrich VM data for rules that need extended properties
             # Only enrich if rule uses extended properties to save API calls
             needs_enrichment = self._rule_needs_enrichment(rule)
+            logger.info(f"[SCHEDULER] Rule needs enrichment: {needs_enrichment}")
             
             if needs_enrichment:
                 for vm in vms:
@@ -168,7 +173,17 @@ class RuleScheduler:
                 enriched_vms = vms
             
             # Execute the rule
+            logger.info(f"[SCHEDULER] Evaluating rule against {len(enriched_vms)} VMs")
             result = self.engine.evaluate_rule(rule, enriched_vms, dry_run=False)
+            
+            # Log detailed results
+            logger.info(f"[SCHEDULER] Rule evaluation result - Success: {result.success}")
+            logger.info(f"[SCHEDULER] Matched VMs: {result.matched_vms}")
+            logger.info(f"[SCHEDULER] Tags added: {result.tags_added}")
+            logger.info(f"[SCHEDULER] Tags removed: {result.tags_removed}")
+            logger.info(f"[SCHEDULER] Tags already present: {result.tags_already_present}")
+            if result.errors:
+                logger.error(f"[SCHEDULER] Errors during execution: {result.errors}")
             
             # Update statistics
             self.storage.update_rule_stats(rule_id, result)
@@ -177,13 +192,15 @@ class RuleScheduler:
             self.history.add_execution(result)
             
             if result.success:
-                logger.info(f"Rule '{rule.name}' executed successfully: "
-                          f"{len(result.matched_vms)} VMs matched")
+                logger.info(f"[SCHEDULER] Rule '{rule.name}' completed successfully: "
+                          f"{len(result.matched_vms)} VMs matched, "
+                          f"{sum(len(tags) for tags in result.tags_added.values())} tags added, "
+                          f"{sum(len(tags) for tags in result.tags_removed.values())} tags removed")
             else:
-                logger.error(f"Rule '{rule.name}' execution failed: {result.errors}")
+                logger.error(f"[SCHEDULER] Rule '{rule.name}' execution failed: {result.errors}")
                 
         except Exception as e:
-            logger.error(f"Error executing rule {rule_id}: {e}")
+            logger.error(f"[SCHEDULER] Error executing rule {rule_id}: {e}", exc_info=True)
     
     def _rule_needs_enrichment(self, rule: ConditionalRule) -> bool:
         """Check if rule uses properties that require enrichment"""
