@@ -1,3 +1,15 @@
+# ProxTagger Docker Compose Configuration
+# 
+# ⚠️ IMPORTANT: Starting from version 1.2.1, ProxTagger uses /app/data for persistent files
+# 
+# If upgrading from older versions that mounted the entire /app directory:
+# 1. Stop the old container: docker compose down
+# 2. Use this new configuration
+# 3. Start: docker compose up -d
+# 4. Migration happens automatically on startup - check the UI for any warnings
+#
+# This change allows seamless code updates when pulling new Docker images
+
 services:
   proxtagger:
     image: reginleif88/proxtagger:latest
@@ -7,10 +19,11 @@ services:
     environment:
       - PORT=5660
     volumes:
-      - proxtagger_config:/app
+      # Mount only the data directory (not the entire /app) to preserve data during updates
+      - proxtagger_data:/app/data
     restart: unless-stopped
 
 volumes:
-  proxtagger_config:
-    name: proxtagger_config
+  proxtagger_data:
+    name: proxtagger_data
     driver: local

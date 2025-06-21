@@ -497,7 +497,29 @@ def get_available_vm_properties() -> Dict[str, Dict[str, Any]]:
         "config.ostype": {
             "type": "string",
             "description": "Operating system type",
-            "example": "l26"
+            "example": "l26",
+            "common_values": {
+                "QEMU VMs": {
+                    "l26": "Linux 2.6/3.x/4.x/5.x/6.x kernel",
+                    "win10": "Windows 10", 
+                    "win11": "Windows 11",
+                    "win7": "Windows 7",
+                    "win8": "Windows 8/8.1",
+                    "w2k19": "Windows Server 2019",
+                    "w2k22": "Windows Server 2022",
+                    "other": "Other OS types"
+                },
+                "LXC Containers": {
+                    "debian": "Debian",
+                    "ubuntu": "Ubuntu",
+                    "centos": "CentOS",
+                    "fedora": "Fedora",
+                    "opensuse": "openSUSE",
+                    "archlinux": "Arch Linux",
+                    "alpine": "Alpine Linux",
+                    "gentoo": "Gentoo"
+                }
+            }
         },
         "config.cores": {
             "type": "number",

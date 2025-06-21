@@ -30,9 +30,12 @@ def get_all_vms() -> list:
     vms = [r for r in all_resources if r["type"] in VALID_VM_TYPES]
     return vms
 
-def get_vm_config(node: str, vmid: int) -> dict:
+def get_vm_config(node: str, vmid: int, vm_type: str = "qemu") -> dict:
     """Fetch the configuration of a specific VM."""
-    url = f"{_get_base_url()}/nodes/{node}/qemu/{vmid}/config"
+    if vm_type not in VALID_VM_TYPES:
+        raise ValueError("Invalid VM type")
+    
+    url = f"{_get_base_url()}/nodes/{node}/{vm_type}/{vmid}/config"
     headers = _get_headers()
     verify_ssl = load_config().get("VERIFY_SSL", True)
 

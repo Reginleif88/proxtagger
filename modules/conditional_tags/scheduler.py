@@ -45,28 +45,56 @@ class RuleScheduler:
         logger.info("Reloading rule schedules")
         
         # Remove all existing jobs
+        existing_count = len(self.jobs)
+        logger.info(f"Removing {existing_count} existing scheduled jobs")
         for job_id in list(self.jobs.keys()):
             self.remove_schedule(job_id)
         
         # Schedule all enabled rules
         rules = self.storage.get_all_rules()
+        logger.info(f"Found {len(rules)} total rules in storage")
+        
+        scheduled_count = 0
         for rule in rules:
             if rule.enabled and rule.schedule.enabled and rule.schedule.cron:
+                logger.debug(f"Scheduling rule '{rule.name}' (ID: {rule.id}) with cron: {rule.schedule.cron}")
                 self.add_schedule(rule)
+                scheduled_count += 1
+            else:
+                reasons = []
+                if not rule.enabled:
+                    reasons.append("rule disabled")
+                if not rule.schedule.enabled:
+                    reasons.append("schedule disabled")
+                if not rule.schedule.cron:
+                    reasons.append("no cron expression")
+                logger.debug(f"Skipping rule '{rule.name}' (ID: {rule.id}): {', '.join(reasons)}")
+        
+        logger.info(f"Scheduled {scheduled_count} rules out of {len(rules)} total rules")
+        logger.info(f"Active APScheduler jobs: {len(self.scheduler.get_jobs())}")
     
     def add_schedule(self, rule: ConditionalRule):
         """Add a scheduled job for a rule"""
-        if not rule.schedule.enabled or not rule.schedule.cron:
+        logger.debug(f"Attempting to schedule rule '{rule.name}' (ID: {rule.id})")
+        
+        if not rule.schedule.enabled:
+            logger.info(f"Rule '{rule.name}' (ID: {rule.id}) not scheduled - schedule is disabled")
+            return
+            
+        if not rule.schedule.cron:
+            logger.info(f"Rule '{rule.name}' (ID: {rule.id}) not scheduled - no cron expression provided")
             return
         
         try:
             # Remove existing job if any
             if rule.id in self.jobs:
+                logger.debug(f"Removing existing schedule for rule '{rule.name}' (ID: {rule.id})")
                 self.remove_schedule(rule.id)
             
             # Create new job with cron validation
             try:
                 trigger = CronTrigger.from_crontab(rule.schedule.cron)
+                logger.debug(f"Created CronTrigger for rule '{rule.name}' with expression: {rule.schedule.cron}")
             except Exception as e:
                 logger.error(f"Invalid cron expression '{rule.schedule.cron}' for rule {rule.id}: {e}")
                 return
@@ -81,10 +109,20 @@ class RuleScheduler:
             )
             
             self.jobs[rule.id] = job.id
-            logger.info(f"Scheduled rule '{rule.name}' with cron: {rule.schedule.cron}")
+            logger.info(f"Successfully scheduled rule '{rule.name}' (ID: {rule.id}) with cron: {rule.schedule.cron}")
+            
+            # Log next run time for verification
+            if job.next_run_time:
+                logger.info(f"Next execution for rule '{rule.name}' scheduled at: {job.next_run_time}")
+            else:
+                logger.warning(f"Rule '{rule.name}' scheduled but no next_run_time available")
+            
+            # Log current scheduler state
+            logger.debug(f"Total scheduled jobs: {len(self.scheduler.get_jobs())}")
+            logger.debug(f"Scheduler running: {self.scheduler.running}")
             
         except Exception as e:
-            logger.error(f"Error scheduling rule '{rule.name}': {e}")
+            logger.error(f"Error scheduling rule '{rule.name}' (ID: {rule.id}): {e}", exc_info=True)
     
     def remove_schedule(self, rule_id: str):
         """Remove a scheduled job for a rule"""
@@ -184,6 +222,42 @@ class RuleScheduler:
                 }
         
         return info
+    
+    def verify_schedules(self) -> Dict[str, any]:
+        """Verify that all scheduled rules are properly registered with APScheduler"""
+        verification = {
+            'scheduler_running': self.scheduler.running,
+            'registered_jobs': len(self.jobs),
+            'active_jobs': len(self.scheduler.get_jobs()),
+            'mismatches': [],
+            'job_details': []
+        }
+        
+        # Check each registered job
+        for rule_id, job_id in self.jobs.items():
+            job = self.scheduler.get_job(job_id)
+            if not job:
+                verification['mismatches'].append({
+                    'rule_id': rule_id,
+                    'job_id': job_id,
+                    'issue': 'Job registered but not found in scheduler'
+                })
+            else:
+                verification['job_details'].append({
+                    'rule_id': rule_id,
+                    'job_id': job_id,
+                    'next_run': job.next_run_time.isoformat() if job.next_run_time else None,
+                    'pending': job.pending
+                })
+        
+        # Log verification results
+        logger.info(f"Schedule verification: {verification['registered_jobs']} registered, "
+                   f"{verification['active_jobs']} active in scheduler")
+        
+        if verification['mismatches']:
+            logger.warning(f"Found {len(verification['mismatches'])} scheduling mismatches")
+        
+        return verification
 
 # Global scheduler instance
 scheduler_instance = None
