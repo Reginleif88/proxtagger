@@ -152,147 +152,149 @@ class RuleEngine:
         
         return value
     
-    def _apply_then_actions(self, rule: ConditionalRule, vms: List[Dict[str, Any]], 
+    def _apply_then_actions(self, rule: ConditionalRule, vms: List[Dict[str, Any]],
                            result: ExecutionResult):
         """Apply THEN actions to matched VMs"""
         from proxmox_api import update_vm_tags
         from tag_utils import parse_tags, format_tags
-        
+
         for vm in vms:
             vmid = vm['vmid']
             node = vm['node']
             vm_type = vm['type']
             current_tags = parse_tags(vm.get('tags', ''))
-            
-            # Calculate new tags (normalize to lowercase)
-            new_tags = set(tag.lower() for tag in current_tags)
-            
+
+            new_tags = list(current_tags)
+            new_tags_lower = set(tag.lower() for tag in new_tags)
+
             # Add tags
             if rule.actions.add_tags:
                 for tag in rule.actions.add_tags:
-                    tag_lower = tag.lower()
-                    if tag_lower not in new_tags:
-                        new_tags.add(tag_lower)
-                        result.tags_added.setdefault(vmid, []).append(tag_lower)
+                    if tag.lower() not in new_tags_lower:
+                        new_tags.append(tag)
+                        new_tags_lower.add(tag.lower())
+                        result.tags_added.setdefault(vmid, []).append(tag)
                     else:
-                        result.tags_already_present.setdefault(vmid, []).append(tag_lower)
-            
+                        result.tags_already_present.setdefault(vmid, []).append(tag)
+
             # Remove tags
             if rule.actions.remove_tags:
                 for tag in rule.actions.remove_tags:
                     tag_lower = tag.lower()
-                    if tag_lower in new_tags:
-                        new_tags.remove(tag_lower)
-                        result.tags_removed.setdefault(vmid, []).append(tag_lower)
-            
+                    if tag_lower in new_tags_lower:
+                        removed = [t for t in new_tags if t.lower() == tag_lower]
+                        new_tags = [t for t in new_tags if t.lower() != tag_lower]
+                        new_tags_lower.discard(tag_lower)
+                        for t in removed:
+                            result.tags_removed.setdefault(vmid, []).append(t)
+
             # Update VM if tags changed
-            if new_tags != set(current_tags):
+            if new_tags != current_tags:
                 try:
-                    formatted_tags = format_tags(list(new_tags))
+                    formatted_tags = format_tags(new_tags)
                     update_vm_tags(node, vmid, formatted_tags, vm_type)
                 except Exception as e:
                     result.errors.append(f"Failed to update VM {vmid}: {e}")
     
-    def _apply_else_actions(self, rule: ConditionalRule, vms: List[Dict[str, Any]], 
+    def _apply_else_actions(self, rule: ConditionalRule, vms: List[Dict[str, Any]],
                            result: ExecutionResult):
         """Apply ELSE actions to non-matched VMs"""
         from proxmox_api import update_vm_tags
         from tag_utils import parse_tags, format_tags
-        
+
         for vm in vms:
             vmid = vm['vmid']
             node = vm['node']
             vm_type = vm['type']
             current_tags = parse_tags(vm.get('tags', ''))
-            
-            # Calculate new tags (normalize to lowercase)
-            new_tags = set(tag.lower() for tag in current_tags)
-            
+
+            new_tags = list(current_tags)
+            new_tags_lower = set(tag.lower() for tag in new_tags)
+
             # Add ELSE tags
             if rule.actions.else_add_tags:
                 for tag in rule.actions.else_add_tags:
-                    tag_lower = tag.lower()
-                    if tag_lower not in new_tags:
-                        new_tags.add(tag_lower)
-                        result.tags_added.setdefault(vmid, []).append(tag_lower)
+                    if tag.lower() not in new_tags_lower:
+                        new_tags.append(tag)
+                        new_tags_lower.add(tag.lower())
+                        result.tags_added.setdefault(vmid, []).append(tag)
                     else:
-                        result.tags_already_present.setdefault(vmid, []).append(tag_lower)
-            
+                        result.tags_already_present.setdefault(vmid, []).append(tag)
+
             # Remove ELSE tags
             if rule.actions.else_remove_tags:
                 for tag in rule.actions.else_remove_tags:
                     tag_lower = tag.lower()
-                    if tag_lower in new_tags:
-                        new_tags.remove(tag_lower)
-                        result.tags_removed.setdefault(vmid, []).append(tag_lower)
-            
+                    if tag_lower in new_tags_lower:
+                        removed = [t for t in new_tags if t.lower() == tag_lower]
+                        new_tags = [t for t in new_tags if t.lower() != tag_lower]
+                        new_tags_lower.discard(tag_lower)
+                        for t in removed:
+                            result.tags_removed.setdefault(vmid, []).append(t)
+
             # Update VM if tags changed
-            if new_tags != set(current_tags):
+            if new_tags != current_tags:
                 try:
-                    formatted_tags = format_tags(list(new_tags))
+                    formatted_tags = format_tags(new_tags)
                     update_vm_tags(node, vmid, formatted_tags, vm_type)
                 except Exception as e:
                     result.errors.append(f"Failed to update VM {vmid}: {e}")
     
-    def _simulate_then_actions(self, rule: ConditionalRule, vms: List[Dict[str, Any]], 
+    def _simulate_then_actions(self, rule: ConditionalRule, vms: List[Dict[str, Any]],
                               result: ExecutionResult):
         """Simulate THEN actions without applying them (dry run)"""
         from tag_utils import parse_tags
-        
+
         for vm in vms:
             vmid = vm['vmid']
             current_tags = parse_tags(vm.get('tags', ''))
-            
-            # Calculate what would be added/removed
-            new_tags = set(current_tags)
-            
+
+            new_tags_lower = set(tag.lower() for tag in current_tags)
+
             # Simulate adding tags
             if rule.actions.add_tags:
                 for tag in rule.actions.add_tags:
-                    tag_lower = tag.lower()
-                    if tag_lower not in new_tags:
-                        new_tags.add(tag_lower)
-                        result.tags_added.setdefault(vmid, []).append(tag_lower)
+                    if tag.lower() not in new_tags_lower:
+                        new_tags_lower.add(tag.lower())
+                        result.tags_added.setdefault(vmid, []).append(tag)
                     else:
-                        result.tags_already_present.setdefault(vmid, []).append(tag_lower)
-            
+                        result.tags_already_present.setdefault(vmid, []).append(tag)
+
             # Simulate removing tags
             if rule.actions.remove_tags:
                 for tag in rule.actions.remove_tags:
                     tag_lower = tag.lower()
-                    if tag_lower in new_tags:
-                        new_tags.remove(tag_lower)
-                        result.tags_removed.setdefault(vmid, []).append(tag_lower)
+                    if tag_lower in new_tags_lower:
+                        new_tags_lower.discard(tag_lower)
+                        result.tags_removed.setdefault(vmid, []).append(tag)
     
-    def _simulate_else_actions(self, rule: ConditionalRule, vms: List[Dict[str, Any]], 
+    def _simulate_else_actions(self, rule: ConditionalRule, vms: List[Dict[str, Any]],
                               result: ExecutionResult):
         """Simulate ELSE actions without applying them (dry run)"""
         from tag_utils import parse_tags
-        
+
         for vm in vms:
             vmid = vm['vmid']
             current_tags = parse_tags(vm.get('tags', ''))
-            
-            # Calculate what would be added/removed
-            new_tags = set(current_tags)
-            
+
+            new_tags_lower = set(tag.lower() for tag in current_tags)
+
             # Simulate adding ELSE tags
             if rule.actions.else_add_tags:
                 for tag in rule.actions.else_add_tags:
-                    tag_lower = tag.lower()
-                    if tag_lower not in new_tags:
-                        new_tags.add(tag_lower)
-                        result.tags_added.setdefault(vmid, []).append(tag_lower)
+                    if tag.lower() not in new_tags_lower:
+                        new_tags_lower.add(tag.lower())
+                        result.tags_added.setdefault(vmid, []).append(tag)
                     else:
-                        result.tags_already_present.setdefault(vmid, []).append(tag_lower)
-            
+                        result.tags_already_present.setdefault(vmid, []).append(tag)
+
             # Simulate removing ELSE tags
             if rule.actions.else_remove_tags:
                 for tag in rule.actions.else_remove_tags:
                     tag_lower = tag.lower()
-                    if tag_lower in new_tags:
-                        new_tags.remove(tag_lower)
-                        result.tags_removed.setdefault(vmid, []).append(tag_lower)
+                    if tag_lower in new_tags_lower:
+                        new_tags_lower.discard(tag_lower)
+                        result.tags_removed.setdefault(vmid, []).append(tag)
     
     # Operator implementations
     def _op_equals(self, field_value: Any, compare_value: Any) -> bool:
