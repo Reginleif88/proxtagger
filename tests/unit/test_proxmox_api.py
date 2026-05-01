@@ -134,18 +134,16 @@ class TestGetAllVms:
     @pytest.mark.unit
     def test_get_all_vms_ssl_verification(self, mock_config, mock_requests_get):
         """Test SSL verification configuration"""
-        # Test with SSL verification enabled
         mock_config["VERIFY_SSL"] = True
-        
-        with patch('config.load_config', return_value=mock_config):
+
+        with patch('proxmox_api.load_config', return_value=mock_config):
             mock_response = Mock()
             mock_response.json.return_value = {"data": []}
             mock_response.raise_for_status.return_value = None
             mock_requests_get.return_value = mock_response
-            
+
             get_all_vms()
-            
-            # Verify SSL verification was enabled
+
             args, kwargs = mock_requests_get.call_args
             assert kwargs["verify"] is True
 
