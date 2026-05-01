@@ -11,6 +11,12 @@
  * @param {string} message - The message to display
  * @param {string} type - Message type: 'info', 'success', 'warning', or 'danger'
  */
+export function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = String(text ?? '');
+    return div.innerHTML;
+}
+
 export function showToast(message, type = "info") {
     // Create toast container if it doesn't exist
     let toastContainer = document.querySelector('.toast-container');
@@ -29,7 +35,7 @@ export function showToast(message, type = "info") {
     toast.setAttribute("aria-atomic", "true");
     toast.innerHTML = `
         <div class="d-flex">
-            <div class="toast-body fw-medium">${message}</div>
+            <div class="toast-body fw-medium">${escapeHtml(message)}</div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
         </div>`;
     

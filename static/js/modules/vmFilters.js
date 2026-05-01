@@ -5,7 +5,7 @@
  * @file modules/vmFilters.js
  */
 
-import { showToast } from './utils.js';
+import { showToast, escapeHtml } from './utils.js';
 import { selectedVMIDs, getDataTableInstance } from './dataTables.js';
 import { updateSelectedVMsList } from './bulkTagManager.js';
 
@@ -231,8 +231,8 @@ function updateFilterDisplay(dataTable) {
     }
     
     if (activeFilters.length > 0) {
-        filterMessage = `<i class="bi bi-funnel-fill"></i> Filters: ${activeFilters.join(', ')} `;
-        filterMessage += `<span class="badge bg-primary ms-1">${visibleCount} VMs</span>`;
+        filterMessage = `<i class="bi bi-funnel-fill"></i> Filters: ${escapeHtml(activeFilters.join(', '))} `;
+        filterMessage += `<span class="badge bg-primary ms-1">${escapeHtml(visibleCount)} VMs</span>`;
         filterStatus.innerHTML = filterMessage;
         showToast(`🔍 Filtered to ${visibleCount} VMs`, 'info');
     } else {

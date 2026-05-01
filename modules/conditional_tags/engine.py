@@ -335,7 +335,10 @@ class RuleEngine:
     
     def _op_regex(self, field_value: Any, pattern: str) -> bool:
         try:
-            return bool(re.search(pattern, str(field_value)))
+            if len(pattern) > 1000:
+                logger.error(f"Regex pattern too long: {len(pattern)} chars")
+                return False
+            return bool(re.compile(pattern).search(str(field_value), endpos=10000))
         except re.error:
             logger.error(f"Invalid regex pattern: {pattern}")
             return False

@@ -391,6 +391,7 @@
     <div class="card-header"><strong>🔧 Proxmox API Setup</strong></div>
     <div class="card-body">
         <form method="POST" class="row g-3">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="col-md-6">
                 <label class="form-label" for="host">Proxmox Host</label>
                 <input type="text" name="host" id="host" class="form-control" placeholder="e.g., proxmox.example.com" value="{{ config.PROXMOX_HOST }}" required>

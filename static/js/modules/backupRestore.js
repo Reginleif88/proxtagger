@@ -84,15 +84,7 @@ export function initBackupRestore() {
                     showToast(`⚠️ ${errorMessage}`, "warning");
                 })
                 .finally(() => {
-                    // Remove the file input
                     document.body.removeChild(fileInput);
-                    
-                    // Always reload the page after 5 seconds as a fallback
-                    // This ensures the UI is refreshed even if an error occurs
-                    setTimeout(() => {
-                        console.log('Forcing page reload');
-                        location.reload();
-                    }, 5000);
                 });
             });
             

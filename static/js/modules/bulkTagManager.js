@@ -5,7 +5,7 @@
  * @file modules/bulkTagManager.js
  */
 
-import { showToast } from './utils.js';
+import { showToast, escapeHtml } from './utils.js';
 import { selectedVMIDs, getDataTableInstance } from './dataTables.js';
 
 // Global variables for tracking bulk tag management elements
@@ -313,13 +313,13 @@ function addSelectedTag(tag) {
     tagElement.className = 'badge bg-primary d-flex align-items-center selected-tag';
     tagElement.dataset.tag = tag;
     tagElement.innerHTML = `
-        ${tag}
+        ${escapeHtml(tag)}
         <button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove"></button>
     `;
-    
+
     // Add to container
     selectedTagsContainer.appendChild(tagElement);
-    
+
     // Check the corresponding checkbox if exists
     const checkbox = document.getElementById(`tag-${tag}`);
     if (checkbox) checkbox.checked = true;
@@ -391,8 +391,8 @@ export function addToAvailableTags(tag) {
     const tagElement = document.createElement('div');
     tagElement.className = 'form-check form-check-inline';
     tagElement.innerHTML = `
-        <input class="form-check-input tag-checkbox" type="checkbox" id="tag-${tag}" value="${tag}">
-        <label class="form-check-label" for="tag-${tag}">${tag}</label>
+        <input class="form-check-input tag-checkbox" type="checkbox" id="tag-${escapeHtml(tag)}" value="${escapeHtml(tag)}">
+        <label class="form-check-label" for="tag-${escapeHtml(tag)}">${escapeHtml(tag)}</label>
     `;
     tagsContainer.appendChild(tagElement);
     
@@ -405,7 +405,7 @@ export function addToAvailableTags(tag) {
             tagElement.className = 'badge bg-primary d-flex align-items-center selected-tag';
             tagElement.dataset.tag = tag;
             tagElement.innerHTML = `
-                ${tag}
+                ${escapeHtml(tag)}
                 <button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove"></button>
             `;
             
@@ -487,7 +487,7 @@ export function updateSelectedVMsList() {
             const vm = vmsToShow[i];
             const badge = document.createElement('span');
             badge.className = 'badge bg-secondary d-flex align-items-center me-1 mb-1';
-            badge.innerHTML = `${vm.name} (${vm.vmid})`;
+            badge.innerHTML = `${escapeHtml(vm.name)} (${escapeHtml(vm.vmid)})`;
             selectedVMsList.appendChild(badge);
         }
         
@@ -495,20 +495,20 @@ export function updateSelectedVMsList() {
         const remaining = totalVMs - maxToShow;
         const countBadge = document.createElement('span');
         countBadge.className = 'badge bg-info d-flex align-items-center me-1 mb-1';
-        countBadge.innerHTML = `+ ${remaining} more VMs selected`;
+        countBadge.innerHTML = `+ ${escapeHtml(remaining)} more VMs selected`;
         selectedVMsList.appendChild(countBadge);
         
         // Also add a total counter
         const totalBadge = document.createElement('div');
         totalBadge.className = 'mt-1 small text-muted';
-        totalBadge.innerHTML = `<strong>${totalVMs}</strong> VMs selected total`;
+        totalBadge.innerHTML = `<strong>${escapeHtml(totalVMs)}</strong> VMs selected total`;
         selectedVMsList.appendChild(totalBadge);
     } else {
         // Display all selected VMs when fewer than maxToShow
         vmsToShow.forEach(vm => {
             const badge = document.createElement('span');
             badge.className = 'badge bg-secondary d-flex align-items-center me-1 mb-1';
-            badge.innerHTML = `${vm.name} (${vm.vmid})`;
+            badge.innerHTML = `${escapeHtml(vm.name)} (${escapeHtml(vm.vmid)})`;
             selectedVMsList.appendChild(badge);
         });
     }

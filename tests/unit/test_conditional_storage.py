@@ -334,7 +334,7 @@ class TestRuleStorage:
     def test_save_rules_error(self, temp_storage_file):
         """Test error handling during rule saving"""
         storage = RuleStorage(temp_storage_file)
-        
+
         # Create rule
         condition = RuleCondition("status", "equals", "running")
         conditions = RuleConditionGroup()
@@ -342,9 +342,9 @@ class TestRuleStorage:
         actions = RuleAction(add_tags=["test"])
         rule = ConditionalRule("Test Rule", conditions=conditions, actions=actions)
         storage.rules[rule.id] = rule
-        
-        # Mock open to raise exception
-        with patch('builtins.open', side_effect=IOError("Permission denied")):
+
+        # Mock atomic write to raise exception
+        with patch('modules.conditional_tags.storage._atomic_write_json', side_effect=IOError("Permission denied")):
             with pytest.raises(IOError):
                 storage._save_rules()
 
@@ -518,10 +518,10 @@ class TestExecutionHistory:
     def test_save_history_error(self, temp_storage_file):
         """Test error handling during history saving"""
         history = ExecutionHistory(temp_storage_file)
-        
-        # Mock open to raise exception
-        with patch('builtins.open', side_effect=IOError("Permission denied")):
+
+        # Mock atomic write to raise exception
+        with patch('modules.conditional_tags.storage._atomic_write_json', side_effect=IOError("Permission denied")):
             with patch('modules.conditional_tags.storage.logger') as mock_logger:
                 history._save_history({"test": []})
-                
+
                 mock_logger.error.assert_called_once()

@@ -1,7 +1,8 @@
 import logging
 import json
 import os
-from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, abort, send_file
+import secrets
+from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, abort, send_file, session
 from io import BytesIO
 from datetime import datetime
 from config import load_config, save_config
@@ -14,8 +15,20 @@ from backup_utils import (
 from modules.conditional_tags import conditional_tags_bp
 
 app = Flask(__name__)
-app.secret_key = "PI2synP8sB9gJjpDzSImXifR" # Not used
+app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.jinja_env.add_extension('jinja2.ext.do')
+
+
+def generate_csrf_token():
+    if "_csrf_token" not in session:
+        session["_csrf_token"] = secrets.token_hex(32)
+    return session["_csrf_token"]
+
+
+app.jinja_env.globals["csrf_token"] = generate_csrf_token
 
 # Register blueprints
 app.register_blueprint(conditional_tags_bp)
@@ -48,6 +61,8 @@ def validate_form_input(form):
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
+        if request.form.get("_csrf_token") != session.get("_csrf_token"):
+            abort(403)
         if not validate_form_input(request.form):
             return redirect(url_for("index"))
             
@@ -65,7 +80,8 @@ def index():
             "PROXMOX_TOKEN_VALUE": request.form["token_value"],
             "VERIFY_SSL": bool(request.form.get("verify_ssl"))
         }
-        logging.info("Saving config: %s", new_config)
+        safe_log = {k: ("***" if k == "PROXMOX_TOKEN_VALUE" else v) for k, v in new_config.items()}
+        logging.info("Saving config: %s", safe_log)
         save_config(new_config)
         
         # Save config and prepare for download + redirect
@@ -351,4 +367,4 @@ def restore_tags():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5660)
+    app.run(debug=False, host="0.0.0.0", port=5660)

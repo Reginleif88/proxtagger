@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 
 CONFIG_FILE = "data/config.json"
 DEFAULTS = {
@@ -18,5 +19,8 @@ def load_config():
     return DEFAULTS.copy()
 
 def save_config(data):
-    with open(CONFIG_FILE, "w") as f:
+    dir_name = os.path.dirname(os.path.abspath(CONFIG_FILE))
+    with tempfile.NamedTemporaryFile(mode="w", dir=dir_name, suffix=".tmp", delete=False) as f:
         json.dump(data, f, indent=4)
+        tmp_path = f.name
+    os.replace(tmp_path, CONFIG_FILE)

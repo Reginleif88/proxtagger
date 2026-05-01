@@ -362,7 +362,7 @@ def api_import_rules():
                     continue
                 
                 # Save the rule
-                storage.save_rule(rule)
+                storage.create_rule(rule)
                 
                 # Schedule if enabled
                 if rule.schedule.enabled:

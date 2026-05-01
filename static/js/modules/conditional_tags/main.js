@@ -3,7 +3,7 @@
  * Coordinates all conditional tags modules
  */
 
-import { showToast } from '../utils.js';
+import { showToast, escapeHtml } from '../utils.js';
 
 // Module state
 let rules = [];
@@ -334,16 +334,16 @@ function displayRules() {
             </td>
             <td>
                 <div class="btn-group btn-group-sm">
-                    <button class="btn btn-outline-primary" onclick="editRule('${rule.id}')" title="Edit">
+                    <button class="btn btn-outline-primary" onclick="editRule('${escapeHtml(rule.id)}')" title="Edit">
                         <i class="bi bi-pencil"></i>
                     </button>
-                    <button class="btn btn-outline-success" onclick="executeRule('${rule.id}')" title="Run Now">
+                    <button class="btn btn-outline-success" onclick="executeRule('${escapeHtml(rule.id)}')" title="Run Now">
                         <i class="bi bi-play"></i>
                     </button>
-                    <button class="btn btn-outline-info" onclick="testRule('${rule.id}')" title="Test">
+                    <button class="btn btn-outline-info" onclick="testRule('${escapeHtml(rule.id)}')" title="Test">
                         <i class="bi bi-eye"></i>
                     </button>
-                    <button class="btn btn-outline-danger" onclick="deleteRule('${rule.id}')" title="Delete">
+                    <button class="btn btn-outline-danger" onclick="deleteRule('${escapeHtml(rule.id)}')" title="Delete">
                         <i class="bi bi-trash"></i>
                     </button>
                 </div>
@@ -1820,11 +1820,3 @@ async function importRules(file) {
     }
 }
 
-/**
- * Utility function to escape HTML
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
