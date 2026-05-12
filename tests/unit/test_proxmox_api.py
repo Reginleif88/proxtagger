@@ -7,6 +7,7 @@ import requests
 from unittest.mock import Mock, patch
 from proxmox_api import (
     get_all_vms, get_vm_config, update_vm_tags,
+    get_cluster_options, update_cluster_options,
     _get_base_url, _get_headers, VALID_VM_TYPES
 )
 
@@ -504,3 +505,92 @@ class TestProxmoxApiLive:
         # Verify VM name doesn't contain production indicators
         production_indicators = ["prod", "production", "live", "master", "main"]
         assert not any(indicator in vm_name for indicator in production_indicators)
+
+
+class TestClusterOptions:
+    """Test get_cluster_options / update_cluster_options."""
+
+    @pytest.fixture
+    def cfg(self):
+        return {
+            "PROXMOX_HOST": "test.proxmox.local",
+            "PROXMOX_PORT": "8006",
+            "PROXMOX_USER": "test@pve",
+            "PROXMOX_TOKEN_NAME": "tok",
+            "PROXMOX_TOKEN_VALUE": "secret",
+            "VERIFY_SSL": True,
+        }
+
+    @pytest.mark.unit
+    @patch('proxmox_api.load_config')
+    def test_get_cluster_options_success(self, mock_load_config, mock_requests_get, cfg):
+        mock_load_config.return_value = cfg
+        mock_response = Mock()
+        mock_response.json.return_value = {"data": {"tag-style": "color-map=prod:ff0000"}}
+        mock_response.raise_for_status = Mock()
+        mock_requests_get.return_value = mock_response
+
+        result = get_cluster_options()
+        assert result == {"tag-style": "color-map=prod:ff0000"}
+
+        called_url = mock_requests_get.call_args[0][0]
+        assert called_url == "https://test.proxmox.local:8006/api2/json/cluster/options"
+        kwargs = mock_requests_get.call_args.kwargs
+        assert kwargs["timeout"] == 5
+        assert kwargs["verify"] is True
+
+    @pytest.mark.unit
+    @patch('proxmox_api.load_config')
+    def test_get_cluster_options_empty_data(self, mock_load_config, mock_requests_get, cfg):
+        mock_load_config.return_value = cfg
+        mock_response = Mock()
+        mock_response.json.return_value = {"data": None}
+        mock_response.raise_for_status = Mock()
+        mock_requests_get.return_value = mock_response
+
+        assert get_cluster_options() == {}
+
+    @pytest.mark.unit
+    @patch('proxmox_api.load_config')
+    def test_get_cluster_options_propagates_http_error(self, mock_load_config, mock_requests_get, cfg):
+        mock_load_config.return_value = cfg
+        mock_response = Mock()
+        mock_response.status_code = 403
+        http_err = requests.HTTPError("403 Forbidden")
+        http_err.response = mock_response
+        mock_response.raise_for_status.side_effect = http_err
+        mock_requests_get.return_value = mock_response
+
+        with pytest.raises(requests.HTTPError):
+            get_cluster_options()
+
+    @pytest.mark.unit
+    @patch('proxmox_api.load_config')
+    def test_update_cluster_options_success(self, mock_load_config, mock_requests_put, cfg):
+        mock_load_config.return_value = cfg
+        mock_response = Mock()
+        mock_response.json.return_value = {"data": None}
+        mock_response.raise_for_status = Mock()
+        mock_requests_put.return_value = mock_response
+
+        update_cluster_options({"tag-style": "color-map=prod:ff0000"})
+
+        called_url = mock_requests_put.call_args[0][0]
+        assert called_url == "https://test.proxmox.local:8006/api2/json/cluster/options"
+        kwargs = mock_requests_put.call_args.kwargs
+        assert kwargs["json"] == {"tag-style": "color-map=prod:ff0000"}
+        assert kwargs["timeout"] == 5
+
+    @pytest.mark.unit
+    @patch('proxmox_api.load_config')
+    def test_update_cluster_options_propagates_http_error(self, mock_load_config, mock_requests_put, cfg):
+        mock_load_config.return_value = cfg
+        mock_response = Mock()
+        mock_response.status_code = 403
+        http_err = requests.HTTPError("403 Forbidden")
+        http_err.response = mock_response
+        mock_response.raise_for_status.side_effect = http_err
+        mock_requests_put.return_value = mock_response
+
+        with pytest.raises(requests.HTTPError):
+            update_cluster_options({"tag-style": ""})

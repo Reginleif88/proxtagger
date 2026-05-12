@@ -434,9 +434,11 @@ class TestBackupTags:
         assert 'application/json' in response.content_type
 
         data = json.loads(response.data)
-        assert isinstance(data, list)
-        assert len(data) == 4
-        assert data[0]['id'] == 100
+        # v2 wrapper: dict with version/vms/tag_colors
+        assert isinstance(data, dict)
+        assert data['version'] == 2
+        assert len(data['vms']) == 4
+        assert data['vms'][0]['id'] == 100
 
     @patch('app.get_all_vms')
     def test_sets_attachment_header(self, mock_vms, client, sample_vms):
@@ -604,3 +606,295 @@ class TestSecurityConfig:
             token1 = app_module.generate_csrf_token()
             token2 = app_module.generate_csrf_token()
             assert token1 == token2
+
+
+# ---------------------------------------------------------------------------
+# /api/tag-colors and /tag-colors
+# ---------------------------------------------------------------------------
+def _http_error(status):
+    """Build a requests.HTTPError with a response carrying status_code."""
+    import requests
+    resp = Mock()
+    resp.status_code = status
+    err = requests.HTTPError(f"{status}")
+    err.response = resp
+    return err
+
+
+class TestApiTagColorsGet:
+
+    @patch('app.get_cluster_options')
+    def test_get_returns_color_map(self, mock_get, client):
+        mock_get.return_value = {"tag-style": "color-map=prod:ff0000:ffffff;dev:00ff00"}
+        response = client.get('/api/tag-colors')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["readable"] is True
+        assert data["colors"] == {
+            "prod": {"bg": "ff0000", "fg": "ffffff"},
+            "dev": {"bg": "00ff00", "fg": None},
+        }
+
+    @patch('app.get_cluster_options')
+    def test_get_empty_when_no_color_map(self, mock_get, client):
+        mock_get.return_value = {"tag-style": "case-sensitive=1"}
+        response = client.get('/api/tag-colors')
+        assert response.status_code == 200
+        assert response.get_json() == {"colors": {}, "readable": True}
+
+    @patch('app.get_cluster_options')
+    def test_get_graceful_on_403(self, mock_get, client):
+        mock_get.side_effect = _http_error(403)
+        response = client.get('/api/tag-colors')
+        # Graceful: 200 with readable:false so the index page never breaks.
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["colors"] == {}
+        assert data["readable"] is False
+        assert "error" in data
+
+    @patch('app.get_cluster_options')
+    def test_get_graceful_on_401(self, mock_get, client):
+        mock_get.side_effect = _http_error(401)
+        response = client.get('/api/tag-colors')
+        assert response.status_code == 200
+        assert response.get_json()["readable"] is False
+
+    @patch('app.get_cluster_options')
+    def test_get_500_on_other_error(self, mock_get, client):
+        mock_get.side_effect = Exception("connection refused")
+        response = client.get('/api/tag-colors')
+        assert response.status_code == 500
+
+
+class TestApiTagColorsPost:
+
+    @patch('app.update_cluster_options')
+    @patch('app.get_cluster_options')
+    def test_post_round_trip_preserves_other_options(self, mock_get, mock_put, client):
+        mock_get.return_value = {"tag-style": "case-sensitive=1,ordering=alphabetical"}
+        mock_put.return_value = {}
+
+        response = client.post('/api/tag-colors',
+                               json={"colors": {"prod": {"bg": "ff0000"}}})
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["success"] is True
+
+        sent = mock_put.call_args[0][0]
+        assert "tag-style" in sent
+        assert "case-sensitive=1" in sent["tag-style"]
+        assert "ordering=alphabetical" in sent["tag-style"]
+        assert "color-map=prod:ff0000" in sent["tag-style"]
+
+    @patch('app.update_cluster_options')
+    @patch('app.get_cluster_options')
+    def test_post_strips_hash_prefix(self, mock_get, mock_put, client):
+        mock_get.return_value = {}
+        mock_put.return_value = {}
+
+        response = client.post('/api/tag-colors',
+                               json={"colors": {"prod": {"bg": "#ff0000", "fg": "#FFFFFF"}}})
+        assert response.status_code == 200
+        sent = mock_put.call_args[0][0]
+        assert "color-map=prod:ff0000:ffffff" in sent["tag-style"]
+
+    @patch('app.update_cluster_options')
+    @patch('app.get_cluster_options')
+    def test_post_empty_colors_clears_color_map(self, mock_get, mock_put, client):
+        mock_get.return_value = {"tag-style": "case-sensitive=1,color-map=prod:ff0000"}
+        mock_put.return_value = {}
+
+        response = client.post('/api/tag-colors', json={"colors": {}})
+        assert response.status_code == 200
+        sent = mock_put.call_args[0][0]
+        assert "color-map" not in sent["tag-style"]
+        assert "case-sensitive=1" in sent["tag-style"]
+
+    @patch('app.update_cluster_options')
+    def test_post_validation_invalid_bg(self, mock_put, client):
+        response = client.post('/api/tag-colors',
+                               json={"colors": {"prod": {"bg": "zzzzzz"}}})
+        assert response.status_code == 400
+        assert response.get_json()["success"] is False
+        mock_put.assert_not_called()
+
+    @patch('app.update_cluster_options')
+    def test_post_validation_invalid_tag_name(self, mock_put, client):
+        response = client.post('/api/tag-colors',
+                               json={"colors": {"BAD NAME": {"bg": "ff0000"}}})
+        assert response.status_code == 400
+        mock_put.assert_not_called()
+
+    @patch('app.update_cluster_options')
+    def test_post_validation_invalid_fg(self, mock_put, client):
+        response = client.post('/api/tag-colors',
+                               json={"colors": {"prod": {"bg": "ff0000", "fg": "zzzz"}}})
+        assert response.status_code == 400
+        mock_put.assert_not_called()
+
+    @patch('app.update_cluster_options')
+    def test_post_validation_missing_colors(self, mock_put, client):
+        response = client.post('/api/tag-colors', json={})
+        assert response.status_code == 400
+        mock_put.assert_not_called()
+
+    @patch('app.update_cluster_options')
+    @patch('app.get_cluster_options')
+    def test_post_403_returns_structured_error(self, mock_get, mock_put, client):
+        mock_get.return_value = {}
+        mock_put.side_effect = _http_error(403)
+
+        response = client.post('/api/tag-colors',
+                               json={"colors": {"prod": {"bg": "ff0000"}}})
+        assert response.status_code == 403
+        data = response.get_json()
+        assert data["success"] is False
+        assert data.get("code") == "permission_denied"
+
+    @patch('app.update_cluster_options')
+    @patch('app.get_cluster_options')
+    def test_post_500_on_other_error(self, mock_get, mock_put, client):
+        mock_get.return_value = {}
+        mock_put.side_effect = Exception("boom")
+
+        response = client.post('/api/tag-colors',
+                               json={"colors": {"prod": {"bg": "ff0000"}}})
+        assert response.status_code == 500
+
+
+class TestTagColorsPage:
+
+    @patch('app.safe_get_color_map')
+    @patch('app.get_all_vms')
+    def test_renders_tag_colors_page(self, mock_vms, mock_colors, client, sample_vms):
+        mock_vms.return_value = sample_vms
+        mock_colors.return_value = ({"prod": {"bg": "ff0000", "fg": None}}, {})
+
+        response = client.get('/tag-colors')
+        assert response.status_code == 200
+        assert b'tagColorsTable' in response.data
+        assert b'PROXTAGGER_TAG_COLORS' in response.data
+
+    @patch('app.get_all_vms')
+    def test_redirects_when_no_vms(self, mock_vms, client):
+        mock_vms.return_value = []
+        response = client.get('/tag-colors')
+        assert response.status_code in (301, 302)
+
+
+# ---------------------------------------------------------------------------
+# Backup / restore — v2 wrapper and color restore
+# ---------------------------------------------------------------------------
+class TestBackupTagsRoute:
+
+    @patch('app.safe_get_color_map')
+    @patch('app.get_all_vms')
+    def test_backup_includes_color_map(self, mock_vms, mock_colors, client, sample_vms):
+        mock_vms.return_value = sample_vms
+        mock_colors.return_value = ({"prod": {"bg": "ff0000", "fg": None}}, {})
+        response = client.get('/backup-tags')
+        assert response.status_code == 200
+        body = json.loads(response.data.decode('utf-8'))
+        assert body["version"] == 2
+        assert body["tag_colors"] == {"prod": {"bg": "ff0000", "fg": None}}
+        assert isinstance(body["vms"], list)
+
+    @patch('app.safe_get_color_map')
+    @patch('app.get_all_vms')
+    def test_backup_omits_colors_when_unreadable(self, mock_vms, mock_colors, client, sample_vms):
+        mock_vms.return_value = sample_vms
+        mock_colors.return_value = ({}, {})
+        response = client.get('/backup-tags')
+        assert response.status_code == 200
+        body = json.loads(response.data.decode('utf-8'))
+        assert body["tag_colors"] == {}
+
+
+class TestRestoreTagsRoute:
+
+    def _post_backup(self, client, payload):
+        data = {
+            'backup_file': (BytesIO(json.dumps(payload).encode('utf-8')), 'backup.json'),
+        }
+        return client.post('/api/restore-tags', data=data, content_type='multipart/form-data')
+
+    @patch('app.update_vm_tags')
+    def test_restore_v1_legacy_list_still_works(self, mock_update, client):
+        mock_update.return_value = None
+        v1 = [
+            {"id": 100, "name": "v", "node": "n1", "type": "qemu", "tags": ["a"]},
+        ]
+        resp = self._post_backup(client, v1)
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["format_version"] == 1
+        assert body["colors_restored"] is None
+        assert body["colors_error"] is None
+
+    @patch('app.update_cluster_options')
+    @patch('app.get_cluster_options')
+    @patch('app.update_vm_tags')
+    def test_restore_v2_with_colors_calls_cluster_options_put(
+        self, mock_update_tags, mock_get_opts, mock_put_opts, client,
+    ):
+        mock_update_tags.return_value = None
+        mock_get_opts.return_value = {"tag-style": "case-sensitive=1"}
+        mock_put_opts.return_value = {}
+        v2 = {
+            "version": 2,
+            "vms": [{"id": 100, "name": "v", "node": "n1", "type": "qemu", "tags": ["a"]}],
+            "tag_colors": {"prod": {"bg": "ff0000", "fg": "ffffff"}},
+        }
+        resp = self._post_backup(client, v2)
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["format_version"] == 2
+        assert body["colors_restored"] == 1
+        assert body["colors_error"] is None
+        # cluster options PUT preserved the existing case-sensitive=1.
+        sent = mock_put_opts.call_args[0][0]
+        assert "case-sensitive=1" in sent["tag-style"]
+        assert "color-map=prod:ff0000:ffffff" in sent["tag-style"]
+
+    @patch('app.update_cluster_options')
+    @patch('app.get_cluster_options')
+    @patch('app.update_vm_tags')
+    def test_restore_v2_color_403_is_non_fatal(
+        self, mock_update_tags, mock_get_opts, mock_put_opts, client,
+    ):
+        mock_update_tags.return_value = None
+        mock_get_opts.return_value = {}
+        mock_put_opts.side_effect = _http_error(403)
+        v2 = {
+            "version": 2,
+            "vms": [{"id": 100, "name": "v", "node": "n1", "type": "qemu", "tags": ["a"]}],
+            "tag_colors": {"prod": {"bg": "ff0000"}},
+        }
+        resp = self._post_backup(client, v2)
+        assert resp.status_code == 200
+        body = resp.get_json()
+        # Tags still restored:
+        assert body["success"] is True
+        # Colors marked as failed with the structured code:
+        assert body["colors_restored"] == 0
+        assert body["colors_error"] == "permission_denied"
+
+    @patch('app.update_vm_tags')
+    def test_restore_v2_invalid_color_in_backup_does_not_fail_tags(
+        self, mock_update_tags, client,
+    ):
+        mock_update_tags.return_value = None
+        v2 = {
+            "version": 2,
+            "vms": [{"id": 100, "name": "v", "node": "n1", "type": "qemu", "tags": ["a"]}],
+            "tag_colors": {"BAD NAME": {"bg": "ff0000"}},
+        }
+        resp = self._post_backup(client, v2)
+        assert resp.status_code == 200
+        body = resp.get_json()
+        assert body["success"] is True
+        assert body["colors_restored"] == 0
+        assert "invalid tag_colors" in (body.get("colors_error") or "")

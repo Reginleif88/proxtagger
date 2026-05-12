@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block content %}
+
+{% if config_ok %}
+<script>
+    window.PROXTAGGER_TAG_COLORS = {{ (color_map or {})|tojson }};
+    window.PROXTAGGER_ALL_TAGS = {{ (all_tag_names or [])|tojson }};
+</script>
+
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-start mb-3 flex-wrap gap-2">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-palette-fill"></i> Tag Colors</h2>
+                <p class="text-muted mb-0">
+                    Customize the background and text color for each tag. Colors are stored at the
+                    cluster level (Datacenter &rarr; Options &rarr; Tag Style in Proxmox) and apply
+                    everywhere ProxTagger and Proxmox render tags.
+                </p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button id="resetAllBtn" class="btn btn-outline-secondary" type="button">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset all to defaults
+                </button>
+                <button id="saveColorsBtn" class="btn btn-primary" type="button" disabled>
+                    <i class="bi bi-cloud-arrow-up"></i> Save Changes
+                </button>
+            </div>
+        </div>
+
+        <div id="permissionAlert" class="alert alert-warning d-none" role="alert">
+            <i class="bi bi-shield-exclamation"></i>
+            <strong>Read-only mode.</strong>
+            Saving requires the Proxmox API token to have <code>Sys.Modify</code> on <code>/</code>.
+            Grant that permission in Datacenter &rarr; Permissions to enable editing.
+        </div>
+
+        <div id="saveStatus" class="alert alert-info d-none" role="alert"></div>
+
+        <div class="card">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table id="tagColorsTable" class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Tag</th>
+                                <th>Preview</th>
+                                <th style="width: 130px;">Background</th>
+                                <th style="width: 130px;">Text</th>
+                                <th style="width: 110px;">Source</th>
+                                <th style="width: 90px;" class="text-end pe-3">Reset</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tagColorsTbody">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">Loading tags…</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% if all_tag_names and all_tag_names|length == 0 %}
+        <div class="alert alert-info mt-3">No tags found in your Proxmox environment yet.</div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<script type="module" src="{{ url_for('static', filename='js/modules/tagColorsPage.js') }}"></script>
+
+{% endblock %}

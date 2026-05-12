@@ -7,6 +7,7 @@
 
 import { showToast } from './utils.js';
 import { addToAvailableTags } from './bulkTagManager.js';
+import { applyTagColor, getTagColor, closeBtnClass } from './tagColors.js';
 
 /**
  * Initialize individual tag editor for each VM/container
@@ -126,16 +127,18 @@ function renderTags(tags, skipBackendUpdate, tagList, vmid, node, type) {
 
     updatedTags.forEach(tag => {
         const chip = document.createElement('span');
-        chip.className = `badge bg-primary tag-chip me-1`;
+        chip.className = `badge tag-chip me-1`;
         chip.title = `Tag: ${tag}`;
+        applyTagColor(chip, tag);
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = tag;
         chip.appendChild(nameSpan);
 
+        const { fg } = getTagColor(tag);
         const closeBtn = document.createElement('button');
         closeBtn.type = "button";
-        closeBtn.className = "btn-close btn-close-white btn-sm ms-2 remove-tag";
+        closeBtn.className = `${closeBtnClass(fg)} btn-sm ms-2 remove-tag`;
         closeBtn.setAttribute("aria-label", "Remove");
         closeBtn.dataset.tag = tag;
         chip.appendChild(closeBtn);

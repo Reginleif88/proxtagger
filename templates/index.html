@@ -2,6 +2,7 @@
 {% block content %}
 
 {% if config_ok %}
+<script>window.PROXTAGGER_TAG_COLORS = {{ (color_map or {})|tojson }};</script>
 
 <!-- Migration Warning Banner -->
 {% if migration_result and (migration_result.files_migrated or migration_result.warnings) %}

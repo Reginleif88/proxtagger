@@ -11,6 +11,7 @@ from .scheduler import get_scheduler
 from .api import get_available_vm_properties, enrich_vm_data, enrich_vm_data_selective
 from proxmox_api import get_all_vms
 from config import load_config
+from cluster_options import safe_get_color_map
 import logging
 import json
 import io
@@ -36,9 +37,10 @@ def index():
             logger.warning("No VMs found - redirecting to main config")
             return redirect(url_for('index'))
             
-        # Normal case: we have VMs and everything is OK    
+        # Normal case: we have VMs and everything is OK
         logger.info(f"Rendering conditional tags page with {len(vms)} VMs")
-        return render_template('conditional_tags/index.html', config_ok=True)
+        color_map, _ = safe_get_color_map()
+        return render_template('conditional_tags/index.html', config_ok=True, color_map=color_map)
         
     except Exception as e:
         logger.error("Error fetching VMs: %s", e)

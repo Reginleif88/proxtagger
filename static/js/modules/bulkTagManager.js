@@ -7,6 +7,7 @@
 
 import { showToast, escapeHtml } from './utils.js';
 import { selectedVMIDs, getDataTableInstance } from './dataTables.js';
+import { applyTagColor, getTagColor, closeBtnClass } from './tagColors.js';
 
 // Global variables for tracking bulk tag management elements
 let selectedTagsContainer;
@@ -310,11 +311,13 @@ function addSelectedTag(tag) {
     
     // Create tag pill
     const tagElement = document.createElement('span');
-    tagElement.className = 'badge bg-primary d-flex align-items-center selected-tag';
+    tagElement.className = 'badge d-flex align-items-center selected-tag';
     tagElement.dataset.tag = tag;
+    applyTagColor(tagElement, tag);
+    const { fg } = getTagColor(tag);
     tagElement.innerHTML = `
         ${escapeHtml(tag)}
-        <button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove"></button>
+        <button type="button" class="${closeBtnClass(fg)} ms-2" aria-label="Remove"></button>
     `;
 
     // Add to container
@@ -323,7 +326,7 @@ function addSelectedTag(tag) {
     // Check the corresponding checkbox if exists
     const checkbox = document.getElementById(`tag-${tag}`);
     if (checkbox) checkbox.checked = true;
-    
+
     // Handle remove button
     tagElement.querySelector('.btn-close').addEventListener('click', () => {
         removeSelectedTag(tag);
@@ -402,11 +405,13 @@ export function addToAvailableTags(tag) {
         if (newCheckbox.checked && selectedTagsContainer) {
             // Create tag pill
             const tagElement = document.createElement('span');
-            tagElement.className = 'badge bg-primary d-flex align-items-center selected-tag';
+            tagElement.className = 'badge d-flex align-items-center selected-tag';
             tagElement.dataset.tag = tag;
+            applyTagColor(tagElement, tag);
+            const { fg } = getTagColor(tag);
             tagElement.innerHTML = `
                 ${escapeHtml(tag)}
-                <button type="button" class="btn-close btn-close-white ms-2" aria-label="Remove"></button>
+                <button type="button" class="${closeBtnClass(fg)} ms-2" aria-label="Remove"></button>
             `;
             
             // Add to container

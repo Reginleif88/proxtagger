@@ -5,19 +5,13 @@
 A lightweight, open-source web interface to bulk manage Proxmox VM and container tags with backup and restore functionality, featuring automated conditional tagging rules.
 
 ![License](https://img.shields.io/github/license/Reginleif88/proxtagger?label=license)
-![Python](https://img.shields.io/badge/python-3.6%2B-blue)
+![Python](https://img.shields.io/badge/python-3.9%2B-blue)
 ![Flask](https://img.shields.io/badge/flask-3.1.0-green)
 [![Support](https://img.shields.io/badge/Support-FF5F5F?logo=ko-fi&logoColor=white)](https://ko-fi.com/reginleif88)
 
-> **⚠️ Important Update for Docker Users**
-> 
-> Starting from version 1.2.1, ProxTagger uses a dedicated `/app/data` directory for persistent files instead of mounting the entire `/app` directory. This change allows seamless code updates when pulling new Docker images.
-> 
-> If upgrading from an older version, please see the [Data Persistence and Updates](#data-persistence-and-updates) section for migration instructions.
-
 ## Overview
 
-ProxTagger provides a simple yet powerful web interface to manage tags for your Proxmox VMs and containers. It simplifies tag management with individual and bulk operations, automated conditional tagging rules, while also offering backup and restore functionality to safeguard your tagging system which is currently not backed up by Promox Backup Server.
+ProxTagger provides a simple yet powerful web interface to manage tags for your Proxmox VMs and containers. It simplifies tag management with individual and bulk operations, automated conditional tagging rules, and tag-only backup and restore. The backup feature is useful for snapshotting and reverting tag changes without restoring entire VMs from Proxmox Backup Server.
 
 ## Features
 
@@ -30,6 +24,10 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
    - Filter VMs/Containers by Host, VMID range, and Name pattern using the dedicated filter panel.
    - Select all VMs/Containers that match the current filter criteria with a single click.
    - Global search bar supporting **regular expressions** for powerful table filtering across all columns.
+- **Tag Colors**
+   - Tag chips render in their Proxmox cluster colors so the ProxTagger UI matches the Proxmox UI.
+   - Tags without an explicit override use the same deterministic color algorithm Proxmox does, so chips are consistent across both UIs without any configuration.
+   - Dedicated "Tag Colors" page with per-tag background and text color pickers; saves are written back to Proxmox's `tag-style` cluster option.
 - **Conditional Tag Management**
    - Create automated rules that apply or remove tags based on VM/container properties.
    - Advanced condition builder with AND/OR logic operators for complex filtering.
@@ -38,14 +36,15 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
    - Test mode with dry-run capabilities to preview changes.
    - Rule execution history and comprehensive logging.
 - **Backup & Restore**
-   - Download tag configurations as JSON files.
-   - Restore tags from previous backups.
+   - Download tag configurations as JSON files (also captures cluster tag color overrides).
+   - Restore tags and tag colors from previous backups.
+   - Backwards-compatible: legacy backup files (pre-tag-colors) still import without changes.
 - **Interactive UI**
    - Dynamic table to browse large numbers of VMs/Containers.
    - Consistent toast notifications provide feedback for user actions.
 - **Security & Flexibility**
    - Uses Proxmox API tokens for secure authentication.
-   - Uses official Promox APIs.
+   - Uses official Proxmox APIs.
 
 ## Getting Started
 
@@ -54,7 +53,7 @@ ProxTagger provides a simple yet powerful web interface to manage tags for your 
 - A Proxmox VE server
 - API token with appropriate permissions (see API Token Setup section for details)
 - Docker (if running in a container)
-- Python 3.6+ (if building locally)
+- Python 3.9+ (if building locally)
 
 ### Running with Docker
 
@@ -87,9 +86,9 @@ Execute `docker compose up -d` and then open your browser and navigate to `http:
 
 #### Using `docker run`
 
-This command starts the container, maps host port 5660 to the application's port 8080 inside the container, sets the internal port using an environment variable, uses a persistent volume for configuration, and runs the latest image.
+This command starts the container, maps host port 5660 to the application's port 5660 inside the container, sets the listening port via the `PORT` environment variable, uses a persistent volume for data, and runs the latest image.
 
-```yaml
+```bash
 # Pull the latest image
 docker pull reginleif88/proxtagger:latest
 
@@ -136,7 +135,15 @@ If you're upgrading from a version that mounted the entire `/app` directory:
     ```
 
 4.  Access the web interface:
-    Open your browser and navigate to `http://localhost:5660` (it also binds to other interfaces, you can change it in `app.py`)
+    Open your browser and navigate to `http://localhost:5660`. The app binds to `0.0.0.0` (all interfaces) by default; set the `PORT` environment variable to use a different port, or edit `app.py` to change the bind host.
+
+## Security Notes
+
+Before exposing ProxTagger, please be aware:
+
+- **No built-in authentication.** ProxTagger has no login screen — anyone who can reach the listening port can manage tags and run conditional rules against your cluster. Run it on a trusted network only, or put it behind a reverse proxy (nginx, Caddy, Traefik, Authelia, etc.) that enforces authentication.
+- **Credentials are stored in plaintext.** Your Proxmox host, user, and API token value are written to a JSON file in the `data/` directory (mounted as `/app/data` in Docker). Treat that volume as sensitive and restrict filesystem access accordingly.
+- **Use a least-privilege API token.** Grant only the permissions listed in [API Token Setup](#api-token-setup). Avoid reusing a token that has broader rights than ProxTagger needs.
 
 ## Configuration
 
@@ -154,7 +161,11 @@ You'll need a Proxmox API token with the following permissions:
 - `VM.Snapshot` (to check snapshot information)
 - `Datastore.Audit` (may be needed for backup information)
 
-Note: Without the optional permissions, basic tagging functionality will work, but some conditional tagging rules based on HA status, backups, or snapshots may not function properly.
+**Optional permissions (for the Tag Colors page):**
+- `Sys.Audit` on `/` — read the cluster-wide tag color map (already needed by some conditional tagging rules).
+- `Sys.Modify` on `/` — save tag color changes from the Tag Colors page.
+
+Note: Without the optional permissions, basic tagging functionality will work, but some conditional tagging rules based on HA status, backups, or snapshots may not function properly. The Tag Colors feature also degrades gracefully — without `Sys.Audit` ProxTagger falls back to deterministic colors derived from each tag name (matching Proxmox's own algorithm), and without `Sys.Modify` the Tag Colors page becomes read-only.
 
 To create an API token:
 
@@ -210,11 +221,20 @@ To create an API token:
 - **Testing**: Use "Test Rule" to perform a dry-run and preview which VMs would be affected.
 - **Management**: View, edit, delete, and execute rules from the rules table. Monitor execution history and results.
 
+### Tag Colors
+
+- **Access**: Click "Tag Colors" in the sidebar to open the management page.
+- **Per-tag colors**: Each tag in your environment is listed with a background and text color picker. Pick the colors you want and click "Save Changes" — ProxTagger writes them back to Proxmox's cluster-wide `tag-style` option, so the colors apply everywhere (Proxmox UI included).
+- **Reset**: Use the per-row reset button to remove an override and fall back to the deterministic default (which matches Proxmox's own algorithm), or "Reset all to defaults" to clear every override at once.
+- **Permissions**: The page requires `Sys.Audit` on `/` to read existing colors, and `Sys.Modify` on `/` to save. Without those, ProxTagger still renders tags with deterministic colors but the page becomes read-only. Tag colors are also included in tag backups (Export Tags) and restored via Import Tags when the token has `Sys.Modify`.
+
 ### Backup & Restore
 
-- **Export Tags**: Click "Export Tags" in the sidebar to download a backup JSON file.
+- **Export Tags**: Click "Export Tags" in the sidebar to download a backup JSON file. The file contains both per-VM tags and the cluster-wide tag color overrides (when the token can read them).
 - **Import Tags**: Click "Import Tags" and select a previously exported backup file.
-- **Note**: When restoring tags, the system matches VMs by VMID, Node, and Type, and replaces all existing tags with imported ones. Feedback is provided if VMs from the backup file cannot be found.
+- **Backup format**: Current backups use a versioned wrapper (`{"version": 2, "vms": [...], "tag_colors": {...}}`). Legacy backups produced by older ProxTagger versions (a bare list) still import without changes — restore is backward-compatible.
+- **Tag restore**: matches VMs by VMID, Node, and Type, and replaces all existing tags with imported ones. Feedback is provided if VMs from the backup file cannot be found.
+- **Color restore**: replaces the entire cluster tag color map with the values from the backup. Requires `Sys.Modify` on `/` — without it, tags are still restored but a warning notes that colors were skipped.
 
 ## Troubleshooting
 

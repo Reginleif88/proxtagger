@@ -63,7 +63,13 @@ export function initBackupRestore() {
                 .then(data => {
                     if (data && data.success) {
                         // Show success message
-                        showToast(`✅ ${data.message}`, "success");                        
+                        showToast(`✅ ${data.message}`, "success");
+                        // Surface a separate warning when colors couldn't be restored.
+                        if (data.colors_error === 'permission_denied') {
+                            showToast("⚠️ Tag colors in the backup were not restored — token lacks Sys.Modify on /.", "warning");
+                        } else if (data.colors_error) {
+                            showToast(`⚠️ Tag colors not restored: ${data.colors_error}`, "warning");
+                        }
                         // Reload the page after a short delay
                         setTimeout(() => location.reload(), 2000);
                     } else {
@@ -73,7 +79,7 @@ export function initBackupRestore() {
                         } else {
                             // Show a more specific message about deleted VMs
                             showToast(`⚠️ Some VMs tags could not be restored. They may have been deleted since the backup was created.`, "warning");
-                            
+
                             // Still reload the page after a delay
                             setTimeout(() => location.reload(), 4000);
                         }

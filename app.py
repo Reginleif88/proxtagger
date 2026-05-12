@@ -2,14 +2,24 @@ import logging
 import json
 import os
 import secrets
+import requests
 from flask import Flask, request, render_template, redirect, url_for, flash, jsonify, abort, send_file, session
 from io import BytesIO
 from datetime import datetime
 from config import load_config, save_config
-from proxmox_api import get_all_vms, update_vm_tags
-from tag_utils import extract_tags
+from proxmox_api import get_all_vms, update_vm_tags, get_cluster_options, update_cluster_options
+from tag_utils import (
+    extract_tags,
+    parse_tag_style,
+    format_tag_style,
+    parse_color_map,
+    format_color_map,
+    TAG_NAME_RE,
+    HEX6_RE,
+)
+from cluster_options import safe_get_color_map
 from backup_utils import (
-    create_backup_file, 
+    create_backup_file,
     restore_from_backup_data
 )
 from modules.conditional_tags import conditional_tags_bp
@@ -118,14 +128,16 @@ def index():
                 error="API token may not have sufficient permissions (VM.Audit and VM.Config.Options)."
             )
             
-        # Normal case: we have VMs and everything is OK    
+        # Normal case: we have VMs and everything is OK
+        color_map, _ = safe_get_color_map()
         return render_template(
             "index.html",
             vms=vms,
             tags=tags,
             config_ok=True,
             show_permission_warning=False,
-            migration_result=app.migration_result
+            migration_result=app.migration_result,
+            color_map=color_map
         )
     except Exception as e:
         logging.error("Error fetching VMs: %s", e)
@@ -304,13 +316,136 @@ def api_bulk_tag_update():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route("/backup-tags")
-def backup_tags():
-    """Generate a JSON file with all VM/CT tags for backup."""
+@app.route("/tag-colors")
+def tag_colors_page():
+    """Render the Tag Colors management page."""
+    config = load_config()
     try:
         vms = get_all_vms()
-        buffer, filename = create_backup_file(vms)
-        
+        if len(vms) == 0:
+            return redirect(url_for("index"))
+        tags = extract_tags(vms)
+        color_map, _ = safe_get_color_map()
+        # Show stale overrides for tags no longer in use so they can be removed.
+        all_tag_names = sorted(set(tags) | set(color_map.keys()))
+        return render_template(
+            "tag_colors.html",
+            config_ok=True,
+            tags=tags,
+            all_tag_names=all_tag_names,
+            color_map=color_map
+        )
+    except Exception as e:
+        logging.error("Error rendering tag colors page: %s", e)
+        return redirect(url_for("index"))
+
+
+@app.route("/api/tag-colors", methods=["GET"])
+def api_get_tag_colors():
+    """Return the current tag color overrides from Proxmox cluster options."""
+    try:
+        opts = get_cluster_options()
+        tag_style = opts.get("tag-style", "") or ""
+        parts = parse_tag_style(tag_style)
+        color_map = parse_color_map(parts.get("color-map", ""))
+        return jsonify({"colors": color_map, "readable": True})
+    except requests.HTTPError as e:
+        code = e.response.status_code if e.response is not None else 500
+        if code in (401, 403):
+            # Graceful degradation: token lacks Sys.Audit on /.
+            return jsonify({
+                "colors": {},
+                "readable": False,
+                "error": "Token lacks Sys.Audit on /"
+            }), 200
+        logging.error("Error fetching cluster options: %s", e)
+        abort(500, description=str(e))
+    except Exception as e:
+        logging.error("Error fetching cluster options: %s", e)
+        abort(500, description=str(e))
+
+
+def _validate_color_payload(new_map):
+    """Validate and normalize a colors payload. Returns (cleaned_map, error_message)."""
+    if not isinstance(new_map, dict):
+        return None, "Missing 'colors' object"
+
+    cleaned = {}
+    for tag, v in new_map.items():
+        if not isinstance(tag, str) or not TAG_NAME_RE.match(tag):
+            return None, f"Invalid tag name '{tag}'"
+        if not isinstance(v, dict):
+            return None, f"Invalid entry for '{tag}'"
+        bg = (v.get("bg") or "").lstrip("#")
+        fg_raw = v.get("fg")
+        fg = (fg_raw or "").lstrip("#") if fg_raw else None
+        if not HEX6_RE.match(bg):
+            return None, f"Invalid bg for '{tag}'"
+        if fg is not None and not HEX6_RE.match(fg):
+            return None, f"Invalid fg for '{tag}'"
+        cleaned[tag] = {"bg": bg.lower(), "fg": fg.lower() if fg else None}
+    return cleaned, None
+
+
+def _apply_color_map(cleaned_map):
+    """Replace the cluster ``color-map`` with ``cleaned_map`` while preserving
+    any other ``tag-style`` sub-options (case-sensitive, ordering, shape).
+
+    ``cleaned_map`` must already be validated/normalized (see
+    ``_validate_color_payload``). Raises whatever ``get_cluster_options`` /
+    ``update_cluster_options`` raise — caller handles permission errors.
+    Returns the new ``tag-style`` string actually written.
+    """
+    opts = get_cluster_options()
+    parts = parse_tag_style(opts.get("tag-style", "") or "")
+    new_color_map = format_color_map(cleaned_map)
+    if new_color_map:
+        parts["color-map"] = new_color_map
+    else:
+        parts.pop("color-map", None)
+    new_tag_style = format_tag_style(parts)
+    update_cluster_options({"tag-style": new_tag_style})
+    return new_tag_style
+
+
+@app.route("/api/tag-colors", methods=["POST"])
+def api_set_tag_colors():
+    """Update tag color overrides on the Proxmox cluster."""
+    data = request.get_json(silent=True) or {}
+    cleaned, error = _validate_color_payload(data.get("colors"))
+    if error:
+        return jsonify({"success": False, "error": error}), 400
+
+    try:
+        new_tag_style = _apply_color_map(cleaned)
+        return jsonify({
+            "success": True,
+            "colors": cleaned,
+            "tag_style": new_tag_style
+        })
+    except requests.HTTPError as e:
+        code = e.response.status_code if e.response is not None else 500
+        if code in (401, 403):
+            return jsonify({
+                "success": False,
+                "code": "permission_denied",
+                "error": "Token lacks Sys.Modify on /. Grant Sys.Modify to edit tag colors."
+            }), 403
+        logging.error("Error updating cluster options: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+    except Exception as e:
+        logging.error("Error updating cluster options: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/backup-tags")
+def backup_tags():
+    """Generate a JSON file with all VM/CT tags + cluster tag colors."""
+    try:
+        vms = get_all_vms()
+        color_map, _ = safe_get_color_map()
+        buffer, filename = create_backup_file(vms, color_map=color_map)
+
         return send_file(
             buffer,
             as_attachment=True,
@@ -336,30 +471,54 @@ def restore_tags():
     try:
         # Parse the JSON file
         backup_data = json.load(file)
-        
-        # Use the utility function to restore tags
-        results = restore_from_backup_data(backup_data, update_vm_tags)
-        
+
+        # Closure that restores cluster tag colors via the same round-trip
+        # used by /api/tag-colors. Validates the payload first, raises
+        # PermissionError on 401/403 so the caller records permission_denied.
+        def _restore_tag_colors(color_map):
+            cleaned, error = _validate_color_payload(color_map)
+            if error:
+                raise ValueError(f"invalid tag_colors in backup: {error}")
+            try:
+                _apply_color_map(cleaned)
+            except requests.HTTPError as http_err:
+                code = http_err.response.status_code if http_err.response is not None else 500
+                if code in (401, 403):
+                    raise PermissionError("Sys.Modify required") from http_err
+                raise
+
+        # Use the utility function to restore tags (and optionally colors)
+        results = restore_from_backup_data(backup_data, update_vm_tags, _restore_tag_colors)
+
         # Always treat it as a success if at least some VMs were updated
         if results["updated"] > 0:
             message = f"Successfully restored tags for {results['updated']} VMs/containers"
-            
+
             # If there were failures, add that info to the message but still show as success
             if results["failed"] > 0:
                 message += f". {results['failed']} VMs/containers couldn't be updated (possibly deleted)."
-                
+
+            if results.get("colors_restored"):
+                message += f". Restored {results['colors_restored']} tag color overrides."
+
             return jsonify({
-                "success": True, 
+                "success": True,
                 "message": message,
                 "partial_failures": results["failed"] > 0,
-                "failures": results["failures"]
+                "failures": results["failures"],
+                "format_version": results.get("format_version"),
+                "colors_restored": results.get("colors_restored"),
+                "colors_error": results.get("colors_error"),
             })
         else:
             # Only show error if nothing could be updated
             return jsonify({
                 "success": False,
                 "error": "No VMs/containers could be updated. Check if the backup file matches your current environment.",
-                "failures": results["failures"]
+                "failures": results["failures"],
+                "format_version": results.get("format_version"),
+                "colors_restored": results.get("colors_restored"),
+                "colors_error": results.get("colors_error"),
             })
     except Exception as e:
         logging.error(f"Error restoring tags: {e}")
@@ -367,4 +526,4 @@ def restore_tags():
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host="0.0.0.0", port=5660)
+    app.run(debug=False, host="0.0.0.0", port=int(os.environ.get("PORT", 5660)))

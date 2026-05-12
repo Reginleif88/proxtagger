@@ -4,6 +4,13 @@
  */
 
 import { showToast, escapeHtml } from '../utils.js';
+import { getTagColor } from '../tagColors.js';
+
+/** Render a small tag-color swatch (a colored dot) as HTML. */
+function tagSwatchHtml(tag) {
+    const { bg } = getTagColor(tag);
+    return `<span class="tag-color-swatch" style="background:#${bg};width:.6em;height:.6em;border-radius:50%;display:inline-block;margin-right:.35em;border:1px solid rgba(0,0,0,.2);vertical-align:middle;"></span>`;
+}
 
 // Module state
 let rules = [];
@@ -773,15 +780,20 @@ function addActionTag(type) {
         return;
     }
     
-    // Create tag element
+    // Create tag element. The chip background stays semantic (green for "add",
+    // red for "remove" actions) to convey what the rule will do; the small
+    // swatch dot inside shows the tag's actual cluster color so users still
+    // see the visual identity of the tag they're choosing.
     const tagElement = document.createElement('span');
     tagElement.className = `badge bg-${badgeClass} tag-badge`;
     tagElement.dataset.tag = tag;
+    const swatch = getTagColor(tag);
     tagElement.innerHTML = `
+        <span class="tag-color-swatch" style="background:#${swatch.bg};width:.6em;height:.6em;border-radius:50%;display:inline-block;margin-right:.35em;border:1px solid rgba(0,0,0,.2);vertical-align:middle;"></span>
         ${escapeHtml(tag)}
         <button type="button" class="btn-close btn-close-white ms-1" onclick="removeActionTag(this)"></button>
     `;
-    
+
     list.appendChild(tagElement);
     input.value = '';
 }
@@ -931,7 +943,7 @@ function showTestResults(ruleData) {
         html += `<h6><i class="bi bi-plus-circle"></i> Tags to be Added:</h6><div class="mb-3">`;
         Object.entries(ruleData.tags_added || {}).forEach(([vmid, tags]) => {
             html += `<div class="mb-1"><strong>VM ${escapeHtml(vmid)}:</strong> `;
-            html += tags.map(tag => `<span class="badge bg-success me-1">${escapeHtml(tag)}</span>`).join('');
+            html += tags.map(tag => `<span class="badge bg-success me-1">${tagSwatchHtml(tag)}${escapeHtml(tag)}</span>`).join('');
             html += `</div>`;
         });
         html += `</div>`;
@@ -941,7 +953,7 @@ function showTestResults(ruleData) {
         html += `<h6><i class="bi bi-dash-circle"></i> Tags to be Removed:</h6><div class="mb-3">`;
         Object.entries(ruleData.tags_removed || {}).forEach(([vmid, tags]) => {
             html += `<div class="mb-1"><strong>VM ${escapeHtml(vmid)}:</strong> `;
-            html += tags.map(tag => `<span class="badge bg-danger me-1">${escapeHtml(tag)}</span>`).join('');
+            html += tags.map(tag => `<span class="badge bg-danger me-1">${tagSwatchHtml(tag)}${escapeHtml(tag)}</span>`).join('');
             html += `</div>`;
         });
         html += `</div>`;
@@ -953,7 +965,7 @@ function showTestResults(ruleData) {
         html += `<h6><i class="bi bi-check-circle"></i> Tags Already Present:</h6><div class="mb-3">`;
         Object.entries(ruleData.tags_already_present || {}).forEach(([vmid, tags]) => {
             html += `<div class="mb-1"><strong>VM ${escapeHtml(vmid)}:</strong> `;
-            html += tags.map(tag => `<span class="badge bg-secondary me-1">${escapeHtml(tag)}</span>`).join('');
+            html += tags.map(tag => `<span class="badge bg-secondary me-1">${tagSwatchHtml(tag)}${escapeHtml(tag)}</span>`).join('');
             html += `</div>`;
         });
         html += `</div>`;

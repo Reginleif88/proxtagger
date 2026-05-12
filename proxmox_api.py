@@ -43,6 +43,31 @@ def get_vm_config(node: str, vmid: int, vm_type: str = "qemu") -> dict:
     response.raise_for_status()
     return response.json().get("data", {})
 
+def get_cluster_options() -> dict:
+    """Fetch cluster-wide datacenter options (incl. tag-style)."""
+    url = f"{_get_base_url()}/cluster/options"
+    headers = _get_headers()
+    verify_ssl = load_config().get("VERIFY_SSL", True)
+
+    response = requests.get(url, headers=headers, verify=verify_ssl, timeout=5)
+    response.raise_for_status()
+    return response.json().get("data", {}) or {}
+
+
+def update_cluster_options(payload: dict) -> dict:
+    """Update cluster-wide datacenter options.
+
+    payload is a flat dict, e.g. ``{'tag-style': 'color-map=prod:ff0000'}``.
+    """
+    url = f"{_get_base_url()}/cluster/options"
+    headers = _get_headers()
+    verify_ssl = load_config().get("VERIFY_SSL", True)
+
+    response = requests.put(url, headers=headers, json=payload, verify=verify_ssl, timeout=5)
+    response.raise_for_status()
+    return response.json()
+
+
 def update_vm_tags(node: str, vmid: int, tags: str, vm_type: str = "qemu") -> dict:
     """Update the tags for a specific VM."""
     if vm_type not in VALID_VM_TYPES:
